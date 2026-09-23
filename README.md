@@ -1,8 +1,6 @@
-> ⚠️ **No affiliation with any cryptocurrency.** OpenMausBot has no token. Any coin using the OpenMausBot, Maus, or SupaMaus name is not created, endorsed, or affiliated with this project or its maintainer. I have received no tokens, payment, or allocation from anyone, and I will not be endorsing any token.
-
 <div align="center">
 
-# OpenMausBot
+# JLFBot
 
 **Your own team of AI bots, in a chat app.**
 
@@ -56,7 +54,7 @@ Talk to them like contacts. Watch them work. Approve what matters.
 
 ## Why
 
-One assistant in one box is the wrong shape for agents. OpenMausBot is an independent, open-source project inspired by **Grok Bot** —
+JLFBot is a private, local-first personal AI agent workspace, derived from the Apache-2.0 OpenMausBot open-source core and inspired by **Grok Bot** —
 it keeps the idea (AI as a *messaging app*: a roster of bots you chat with, each with its own personality,
 memory of its thread, model, computer, and apps) and rebuilds it open, local-first, and on the agents you
 already have:
@@ -276,7 +274,7 @@ Any desktop build can also pair as a client to another Windows, macOS, or Ubuntu
 **From source:**
 
 ```sh
-git clone https://github.com/milind-soni/OpenMausBot && cd OpenMausBot
+git clone https://github.com/jaylfronteras/JLFBot && cd JLFBot
 pnpm install
 
 pnpm dev:server    # harness server → 127.0.0.1:8799
@@ -375,12 +373,6 @@ No code needed at all for your own engines: any ACP-speaking CLI or OpenAI-compa
 plugs in through config — see [`docs/custom-engines.md`](docs/custom-engines.md).
 Users can add their own MCP tool servers with zero code via [`docs/custom-mcp-servers.md`](docs/custom-mcp-servers.md).
 
-## Support the project
-
-OpenMausBot is free and open source. If it does real work for you, you can
-[buy the project a coffee or become a monthly supporter](https://buy.polar.sh/polar_cl_bbnfWFUrWONIF4HnUpZf1p0if0eUYg3HeXct73b48Yg) —
-one-time any amount, or monthly. Payments are handled by [Polar](https://polar.sh/supamaus),
-which takes care of receipts and taxes; nothing about the app ever sits behind a paywall.
 
 ## Run from a terminal or on a server
 
@@ -423,16 +415,11 @@ AI-provider sign-in. Devices pair once with a short code. The deployment guide i
 
 ## License
 
-[Apache License 2.0](LICENSE) © 2026 Milind Soni and OpenMausBot contributors,
-except `enterprise/`, which is source-available under its
-[own license](enterprise/LICENSE); delete that folder and what remains is the
-open-source edition. Details, including how contributions are signed off, are
-in [LICENSING.md](LICENSING.md).
+JLFBot is derived from the Apache License 2.0 OpenMausBot open-source edition.
+The original copyright and attribution notices are preserved in [LICENSE](LICENSE)
+and [NOTICE](NOTICE). The source-available `enterprise/` implementation is not
+part of this JLFBot branch.
 
-Packaged Cua Driver components retain their upstream MIT, SIL OFL 1.1, MPL-2.0, and other dependency terms;
-the corresponding notices, license texts, source locations, and SBOM are in
-[`third_party/cua-driver/`](third_party/cua-driver/) and ship beside the native runtime.
-
-OpenMausBot is an independent, open-source project inspired by Grok Bot. It is
-not affiliated with, endorsed by, or associated with xAI; "Grok" is a trademark
-of its respective owner.
+OpenMausBot is an independent open-source project inspired by Grok Bot and is
+not affiliated with xAI. JLFBot likewise is not affiliated with, endorsed by,
+or associated with xAI; "Grok" is a trademark of its respective owner.
