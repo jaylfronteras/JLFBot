@@ -49,3 +49,8 @@ JLFBot is a private, single-owner AI agent workspace derived from the Apache-2.0
 - Do not commit API keys, provider credentials or session tokens.
 - Keep host-computer control opt-in and fail closed on unsupported platforms.
 - Treat local config/backups as sensitive because some credentials are stored locally.
+
+
+## Verification policy
+- JLFBot-specific changes must pass the repository CI matrix before they are merged into main.
+- Keep main as the clean upstream-compatible baseline until the development branch is verified.
