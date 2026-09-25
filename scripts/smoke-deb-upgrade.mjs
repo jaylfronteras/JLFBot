@@ -17,11 +17,11 @@ const candidate = path.resolve(process.argv[2] ?? "");
 if (!candidate.endsWith(".deb") || !fs.existsSync(candidate)) fail("pass the newly built DEB path");
 
 try {
-  const status = execFileSync("dpkg-query", ["-W", "-f=${db:Status-Abbrev}", "openmausbot"], {
+  const status = execFileSync("dpkg-query", ["-W", "-f=${db:Status-Abbrev}", "jlfbot"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
-  if (status.startsWith("ii")) fail("refusing to replace a pre-existing OpenMausBot installation");
+  if (status.startsWith("ii")) fail("refusing to replace a pre-existing JLFBot installation");
 } catch (error) {
   if (String(error?.message ?? error).includes("refusing to replace")) throw error;
 }
@@ -70,9 +70,9 @@ try {
     stdio: "inherit",
   });
   for (const directory of [
-    "/opt/OpenMausBot",
-    "/opt/OpenMausBot/resources",
-    "/opt/OpenMausBot/resources/cua-linux-x64",
+    "/opt/JLFBot",
+    "/opt/JLFBot/resources",
+    "/opt/JLFBot/resources/cua-linux-x64",
   ]) {
     const details = fs.lstatSync(directory);
     if (!details.isDirectory() || details.isSymbolicLink()) fail(`unsafe upgraded directory: ${directory}`);
@@ -81,14 +81,14 @@ try {
     }
   }
   for (const executable of ["cua-driver", "cua-cursor-theme"]) {
-    const file = path.join("/opt/OpenMausBot/resources/cua-linux-x64", executable);
+    const file = path.join("/opt/JLFBot/resources/cua-linux-x64", executable);
     const details = fs.lstatSync(file);
     if (!details.isFile() || details.isSymbolicLink()) fail(`unsafe upgraded executable: ${file}`);
     if (details.uid !== 0 || details.gid !== 0 || (details.mode & 0o777) !== 0o755) {
       fail(`upgraded executable is not root:root 0755: ${file}`);
     }
   }
-  const chromiumSandbox = "/opt/OpenMausBot/chrome-sandbox";
+  const chromiumSandbox = "/opt/JLFBot/chrome-sandbox";
   const sandboxDetails = fs.lstatSync(chromiumSandbox);
   if (!sandboxDetails.isFile() || sandboxDetails.isSymbolicLink()) {
     fail(`unsafe upgraded Chromium sandbox: ${chromiumSandbox}`);
@@ -100,7 +100,7 @@ try {
   ) {
     fail(`upgraded Chromium sandbox is not root:root 4755: ${chromiumSandbox}`);
   }
-  const installedVersion = execFileSync("dpkg-query", ["-W", "-f=${Version}", "openmausbot"], {
+  const installedVersion = execFileSync("dpkg-query", ["-W", "-f=${Version}", "jlfbot"], {
     encoding: "utf8",
   }).trim();
   console.log(
