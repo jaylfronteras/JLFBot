@@ -10,8 +10,8 @@ import {
 } from "./managed-companion-tunnel.mjs";
 
 // JLFBot has no hosted account service (upstream used its own
-// accounts.openmausbot.com). Phone relay through a control plane is off unless
-// OMB_CONTROL_PLANE_URL names one you run yourself (cloudflare/control-plane).
+// accounts.jlfbot.example.com). Phone relay through a control plane is off unless
+// JLFBOT_CONTROL_PLANE_URL names one you run yourself (cloudflare/control-plane).
 export const DEFAULT_COMPANION_CONTROL_PLANE_URL = "";
 
 export const COMPANION_CLIENT_INSTANCE_FIELD = "companionClientInstanceId";
@@ -25,7 +25,7 @@ export const COMPANION_ACCOUNT_CLEANUP_PENDING_FIELD = "companionAccountCleanupP
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INSTALLATION_ID = UUID;
-const INSTALLATION_CREDENTIAL = /^omb_install_[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/;
+const INSTALLATION_CREDENTIAL = /^jlf_install_[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/;
 const DEFAULT_HEALTH_CACHE_MS = 30_000;
 
 const ownString = (document, field) =>
@@ -39,8 +39,8 @@ export function resolveCompanionControlPlaneURL({
   isPackaged,
   environment = process.env,
 } = {}) {
-  if (Object.hasOwn(environment, "OMB_CONTROL_PLANE_URL")) {
-    return normalizeControlPlaneURL(environment.OMB_CONTROL_PLANE_URL);
+  if (Object.hasOwn(environment, "JLFBOT_CONTROL_PLANE_URL")) {
+    return normalizeControlPlaneURL(environment.JLFBOT_CONTROL_PLANE_URL);
   }
   return isPackaged ? DEFAULT_COMPANION_CONTROL_PLANE_URL : "";
 }
@@ -135,7 +135,7 @@ const FRIENDLY_MESSAGES = Object.freeze({
   unauthorized: "Your sign-in expired. Email yourself a new code to reconnect.",
   forbidden: "The secure connection request was not allowed. Try signing in again.",
   signed_out: "Your sign-in expired. Email yourself a new code to reconnect.",
-  network_unavailable: "OpenMausBot could not reach its secure connection service. Check your internet and try again.",
+  network_unavailable: "JLFBot could not reach its secure connection service. Check your internet and try again.",
   rate_limited: "Too many attempts were made. Wait a little, then try again.",
   credential_rotation_rate_limited: "This computer was reconnected too often. Wait a little, then try again.",
   installation_limit_reached: "This account has reached its computer limit. Remove an old computer and try again.",

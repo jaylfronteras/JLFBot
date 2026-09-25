@@ -1,15 +1,15 @@
 # XcodeGen spec. The .xcodeproj is generated, not committed — a project
 # file is a merge-conflict machine and nothing in it is worth reviewing.
 #
-#   brew install xcodegen && cd ios && xcodegen generate && open OpenMausCompanion.xcodeproj
+#   brew install xcodegen && cd ios && xcodegen generate && open JLFBotCompanion.xcodeproj
 #
 # XcodeGen is a development tool, not a dependency of the app: the app
 # itself has none. If you'd rather not install it, make an iOS App target
 # in Xcode by hand, add the App/ folder, and add the local CompanionCore
 # package — the Info.plist keys below are the part that is easy to miss.
-name: OpenMausCompanion
+name: JLFBotCompanion
 options:
-  bundleIdPrefix: com.openmausbot
+  bundleIdPrefix: com.jlfbot
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -19,18 +19,18 @@ packages:
     path: .
 
 schemes:
-  OpenMausCompanion:
+  JLFBotCompanion:
     build:
       targets:
-        OpenMausCompanion: all
-        OpenMausCompanionUITests: [test]
+        JLFBotCompanion: all
+        JLFBotCompanionUITests: [test]
     test:
       config: Debug
       targets:
-        - OpenMausCompanionUITests
+        - JLFBotCompanionUITests
 
 targets:
-  OpenMausCompanion:
+  JLFBotCompanion:
     type: application
     platform: iOS
     sources:
@@ -40,11 +40,11 @@ targets:
     dependencies:
       - package: CompanionCore
         product: CompanionCore
-      - target: OpenMausCompanionWidgets
-      - target: OpenMausShareExtension
+      - target: JLFBotCompanionWidgets
+      - target: JLFBotShareExtension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.openmausbot.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.jlfbot.app
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "6"
         SWIFT_VERSION: "5.9"
@@ -52,34 +52,34 @@ targets:
         # The catalog lives in App/, which is already a source path.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
-      path: App/OpenMausCompanion.entitlements
+      path: App/JLFBotCompanion.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.openmausbot.shared
+          - group.com.jlfbot.shared
         keychain-access-groups:
-          - $(AppIdentifierPrefix)com.openmausbot.app
-          - $(AppIdentifierPrefix)group.com.openmausbot.shared
+          - $(AppIdentifierPrefix)com.jlfbot.app
+          - $(AppIdentifierPrefix)group.com.jlfbot.shared
     info:
       path: App/Info.plist
       properties:
         # What appears under the icon. This MUST stay close to the App Store
-        # listing name ("MausBot") or review rejects the build under
-        # guideline 2.3.8: a person who installs "MausBot" has to be able to
-        # find it on the home screen. The desktop app is "OpenMausBot", which
+        # listing name ("JLFBot") or review rejects the build under
+        # guideline 2.3.8: a person who installs "JLFBot" has to be able to
+        # find it on the home screen. The desktop app is "JLFBot", which
         # is near enough to read as the same family and still tell them apart.
-        CFBundleDisplayName: MausBot
+        CFBundleDisplayName: JLFBot
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
         ITSAppUsesNonExemptEncryption: false
-        OpenMausKeychainAccessGroup: $(AppIdentifierPrefix)group.com.openmausbot.shared
+        JLFBotKeychainAccessGroup: $(AppIdentifierPrefix)group.com.jlfbot.shared
         # The bot's Live Activity — its face and ask in the Dynamic Island
         # and on the lock screen.
         NSSupportsLiveActivities: true
         CFBundleURLTypes:
-          - CFBundleURLName: com.openmausbot.companion.pairing
+          - CFBundleURLName: com.jlfbot.companion.pairing
             CFBundleURLSchemes:
-              - openmausbot
+              - jlfbot
         # REQUIRED, and easy to lose. Without a launch screen iOS runs the
         # app in compatibility scaling: letterboxed inside black bars, with
         # everything drawn oversized, on every modern iPhone. An empty
@@ -102,18 +102,18 @@ targets:
         # It looks exactly like "no computers on this network", which is a
         # confusing hour if you don't know to look here.
         NSLocalNetworkUsageDescription: >-
-          OpenMausBot finds your computer on this network so your bots can
+          JLFBot finds your computer on this network so your bots can
           reach you here.
         NSCameraUsageDescription: >-
-          OpenMausBot uses the camera only to scan a pairing QR code shown on
+          JLFBot uses the camera only to scan a pairing QR code shown on
           your computer.
         NSMicrophoneUsageDescription: >-
-          OpenMausMobile listens while you dictate a message to a bot.
+          JLFBotMobile listens while you dictate a message to a bot.
         NSSpeechRecognitionUsageDescription: >-
-          OpenMausMobile converts your speech into text so you can send it
+          JLFBotMobile converts your speech into text so you can send it
           to a bot. Recognition runs on this phone when it can.
         NSBonjourServices:
-          - _openmausbot._tcp
+          - _jlfbot._tcp
         # The companion listener is plain HTTP on a local address. ATS has
         # to be told, and this is the narrowest way to say it: local
         # networking only, not a blanket exception.
@@ -134,26 +134,26 @@ targets:
               NSExceptionAllowsInsecureHTTPLoads: true
 
   # Native navigation coverage uses bundled synthetic data and no pairing.
-  OpenMausCompanionUITests:
+  JLFBotCompanionUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
       - path: UITests
     dependencies:
-      - target: OpenMausCompanion
+      - target: JLFBotCompanion
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.openmausbot.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.jlfbot.app.uitests
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: YES
-        TEST_TARGET_NAME: OpenMausCompanion
+        TEST_TARGET_NAME: JLFBotCompanion
 
   # The system share sheet can send a link, text, image, or document straight
   # to a paired bot without first opening the containing app. Connection
   # metadata lives in the App Group; the bearer remains in the shared
   # Keychain access group.
-  OpenMausShareExtension:
+  JLFBotShareExtension:
     type: app-extension
     platform: iOS
     sources:
@@ -164,7 +164,7 @@ targets:
         product: CompanionCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.openmausbot.app.share
+        PRODUCT_BUNDLE_IDENTIFIER: com.jlfbot.app.share
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "6"
         SWIFT_VERSION: "5.9"
@@ -172,19 +172,19 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: true
     entitlements:
-      path: ShareExtension/OpenMausShareExtension.entitlements
+      path: ShareExtension/JLFBotShareExtension.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.openmausbot.shared
+          - group.com.jlfbot.shared
         keychain-access-groups:
-          - $(AppIdentifierPrefix)group.com.openmausbot.shared
+          - $(AppIdentifierPrefix)group.com.jlfbot.shared
     info:
       path: ShareExtension/Info.plist
       properties:
-        CFBundleDisplayName: MausBot
+        CFBundleDisplayName: JLFBot
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        OpenMausKeychainAccessGroup: $(AppIdentifierPrefix)group.com.openmausbot.shared
+        JLFBotKeychainAccessGroup: $(AppIdentifierPrefix)group.com.jlfbot.shared
         # ATS is evaluated for URLSession work performed by the extension too.
         # Mirror the containing app's narrow local/Tailscale exceptions so a
         # share can reach the same already-paired routes. Local-network privacy
@@ -208,23 +208,23 @@ targets:
 
   # The Live Activity lives in a widget extension. It shares the mascot's
   # drawing and data with the app, and the activity contract in Shared/.
-  OpenMausCompanionWidgets:
+  JLFBotCompanionWidgets:
     type: app-extension
     platform: iOS
     sources:
       - path: Widgets
       - path: Shared
-      - path: App/MausAvatar.swift
-      - path: App/MausFaceData.swift
+      - path: App/JlfAvatar.swift
+      - path: App/JlfFaceData.swift
     dependencies:
-      # MausAvatar draws whichever body a bot wears, and the body catalog and
+      # JlfAvatar draws whichever body a bot wears, and the body catalog and
       # its path parser live in CompanionCore. The extension shares the
       # drawing with the app, so it has to share the catalog too.
       - package: CompanionCore
         product: CompanionCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.openmausbot.app.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.jlfbot.app.widgets
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "6"
         SWIFT_VERSION: "5.9"
@@ -233,7 +233,7 @@ targets:
     info:
       path: Widgets/Info.plist
       properties:
-        CFBundleDisplayName: MausBot
+        CFBundleDisplayName: JLFBot
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:

@@ -8,12 +8,12 @@ a renderer password. Manual file export remains password-encrypted. Legacy
 cloud archives without a stored key still request their original password.
 The passwordless fixture also exercises opt-in daily backups and exact restart
 recovery. Keys are excluded from renderer results, lists and progress events.
-Passing receipt: `omb-company-backup-ui-9VYfby/receipt.json` in the system temp
+Passing receipt: `jlfbot-company-backup-ui-9VYfby/receipt.json` in the system temp
 directory. Screenshots of upload consent and narrow preview were reviewed;
 the fixture cleaned up its temporary runtime and profile. Native regressions
 passed 111 tests; the three Settings test files passed 63 tests. Cross-repo
 real-Admin enrollment/upload/preview passed separately in
-`/tmp/omb-desktop-integration-qiFHPi/receipt.json` using fake storage and inference.
+`/tmp/jlfbot-desktop-integration-qiFHPi/receipt.json` using fake storage and inference.
 
 The final real-Electron run, including the state/list-failure UI fix, has a passing
 `receipt.json` in the printed evidence directory.

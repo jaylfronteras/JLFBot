@@ -1,6 +1,6 @@
 // Usage analytics are disabled in JLFBot.
 //
-// Upstream OpenMausBot shipped a PostHog client with a hard-coded project key
+// Upstream JLFBot shipped a PostHog client with a hard-coded project key
 // that reported usage events (and, optionally, the onboarding email) to the
 // upstream maintainers. JLFBot is a private, local-first fork, so nothing here
 // talks to the network: every export keeps its call signature so callers do

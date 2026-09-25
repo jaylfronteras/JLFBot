@@ -8,13 +8,13 @@ import { createCompanyBackups } from "./company-backups.mjs";
 
 const PART_BYTES = 64 * 1024 * 1024;
 const MAX_BYTES = 10 * 1024 * 1024 * 1024;
-const MAGIC = Buffer.from("OMB-WORKSPACE-1\n");
+const MAGIC = Buffer.from("JLFBOT-WORKSPACE-1\n");
 const BACKUP_ID = "11111111-1111-4111-8111-111111111111";
 const EXPORT_ID = "22222222-2222-4222-8222-222222222222";
 const UPLOAD_ID = "33333333-3333-4333-8333-333333333333";
 const R2_ORIGIN = `https://${"a".repeat(32)}.r2.cloudflarestorage.com`;
 const PASSWORD = "fixture-only backup password";
-const SUMMARY = { format: "openmaus.workspace-backup", version: 1, id: UPLOAD_ID, bytes: 4096, bots: 1, conversations: 2, messages: 3 };
+const SUMMARY = { format: "jlfbot.workspace-backup", version: 1, id: UPLOAD_ID, bytes: 4096, bots: 1, conversations: 2, messages: 3 };
 const partEtag = partNumber => `"${partNumber.toString(16).padStart(32, "0")}"`;
 
 // These are synthetic opaque container bytes, not a real encrypted workspace.
@@ -70,7 +70,7 @@ function jsonBody(options) {
 }
 
 async function fixture(t, overrides = {}) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omb-company-backups-test-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "jlfbot-company-backups-test-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.chmod(root, 0o700);
   await fs.writeFile(path.join(root, "keep.txt"), "unrelated temporary content");
@@ -305,7 +305,7 @@ for (const url of [
   `https://user:password@${new URL(R2_ORIGIN).host}/object`,
   `${R2_ORIGIN}:444/object`,
   "http://127.0.0.1:9987/object",
-  "file:///tmp/fixture.ombbackup",
+  "file:///tmp/fixture.jlfbotbackup",
 ]) {
   test(`cloud restore refuses untrusted storage URL ${url}`, async t => {
     const f = await fixture(t, {

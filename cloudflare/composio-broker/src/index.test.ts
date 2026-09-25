@@ -82,7 +82,7 @@ describe("connected-apps broker boundaries", () => {
   });
 
   it("hashes installation tokens before storage", async () => {
-    await expect(sha256("openmausbot")).resolves.toBe("63c74f70a9d4681c334e84001935955a75245ea5b16b9c37c808e85c69963705");
+    await expect(sha256("jlfbot")).resolves.toBe("63c74f70a9d4681c334e84001935955a75245ea5b16b9c37c808e85c69963705");
   });
 
   it("creates Sessions with explicit multi-account selection", async () => {
@@ -90,15 +90,15 @@ describe("connected-apps broker boundaries", () => {
     const { env } = testEnv(fetchCalls);
     vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
       fetchCalls.push({ url: String(input), init });
-      return Response.json(session("trs_new", "omb_user"), { status: 201 });
+      return Response.json(session("trs_new", "jlf_user"), { status: 201 });
     });
 
-    await expect(createSession(env as never, "omb_user")).resolves.toMatchObject({
+    await expect(createSession(env as never, "jlf_user")).resolves.toMatchObject({
       sessionId: "trs_new",
       multiAccountConfigured: true,
     });
     expect(JSON.parse(String(fetchCalls[0].init?.body))).toMatchObject({
-      user_id: "omb_user",
+      user_id: "jlf_user",
       multi_account: multiAccount,
     });
   });
@@ -109,18 +109,18 @@ describe("connected-apps broker boundaries", () => {
     vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       fetchCalls.push({ url, init });
-      if (init?.method === "POST") return Response.json(session("trs_new", "omb_stable"), { status: 201 });
-      return Response.json(session("trs_legacy", "omb_stable", false));
+      if (init?.method === "POST") return Response.json(session("trs_new", "jlf_stable"), { status: 201 });
+      return Response.json(session("trs_legacy", "jlf_stable", false));
     });
 
     await expect(ensureSession({
       id: "install-1",
-      composio_user_id: "omb_stable",
+      composio_user_id: "jlf_stable",
       session_id: "trs_legacy",
       disabled_at: null,
     }, env as never, ctx as never)).resolves.toMatchObject({ sessionId: "trs_new", multiAccountConfigured: true });
     const creation = fetchCalls.find((call) => call.init?.method === "POST");
-    expect(JSON.parse(String(creation?.init?.body))).toMatchObject({ user_id: "omb_stable", multi_account: multiAccount });
+    expect(JSON.parse(String(creation?.init?.body))).toMatchObject({ user_id: "jlf_stable", multi_account: multiAccount });
     expect(dbRuns.some((run) => run.values[0] === "trs_new" && run.values[2] === "install-1")).toBe(true);
   });
 
@@ -160,7 +160,7 @@ describe("connected-apps broker boundaries", () => {
       if (url.endsWith("/tool_router/session/trs_multi/link") && init?.method === "POST") {
         return Response.json({ redirect_url: "https://connect.composio.dev/link/gmail" }, { status: 201 });
       }
-      if (url.includes("/tool_router/session/trs_multi")) return Response.json(session("trs_multi", "omb_stable"));
+      if (url.includes("/tool_router/session/trs_multi")) return Response.json(session("trs_multi", "jlf_stable"));
       if (url.includes("/connected_accounts?") && !init?.method) {
         if (connectedAccountsUnavailable) {
           return Response.json({ error: "connected-account read not granted" }, { status: 403 });
@@ -179,7 +179,7 @@ describe("connected-apps broker boundaries", () => {
     });
     const installation = {
       id: "install-1",
-      composio_user_id: "omb_stable",
+      composio_user_id: "jlf_stable",
       session_id: "trs_multi",
       disabled_at: null,
     };
@@ -346,7 +346,7 @@ describe("connected-apps broker boundaries", () => {
                 run: async () => {},
                 first: async () => (
                   sql.includes("FROM installations")
-                    ? { id: "install-1", composio_user_id: "omb_user", session_id: "trs_test", disabled_at: null }
+                    ? { id: "install-1", composio_user_id: "jlf_user", session_id: "trs_test", disabled_at: null }
                     : null
                 ),
               };
@@ -361,7 +361,7 @@ describe("connected-apps broker boundaries", () => {
       if (url.endsWith("/link")) return Response.json({ redirect_url: "https://connect.composio.dev/link/_1password" });
       if (url.includes("/connected_accounts")) return Response.json({ items: [] });
       if (url.includes("/toolkits")) return Response.json({ items: [] });
-      return Response.json(session("trs_test", "omb_user"));
+      return Response.json(session("trs_test", "jlf_user"));
     });
 
     const response = await worker.fetch(

@@ -1,5 +1,5 @@
 // Per-turn MCP entry point. Only a scoped browser capability crosses into the
-// agent process; engine commands, session names, and credentials stay in OMB.
+// agent process; engine commands, session names, and credentials stay in JLFBOT.
 import { pathToFileURL } from "node:url";
 
 const MAX_INPUT_BYTES = 1_048_576;
@@ -41,14 +41,14 @@ export async function browserProxyRequest(
   if (!Object.hasOwn(message, "id")) return undefined;
   if (message.method === "initialize") return {
     jsonrpc: "2.0", id,
-    result: { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "openmausbot-browser", version: "1" } },
+    result: { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "jlfbot-browser", version: "1" } },
   };
   if (message.method === "ping") return { jsonrpc: "2.0", id, result: {} };
   if (message.method !== "tools/list" && message.method !== "tools/call") return failure(id, message.method, "Method not found.", -32601);
   try {
     const url = new URL(connection.url);
     if (!connection.token || url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
-      throw new Error("Browser connection is not configured. Start a new bot turn from OpenMausBot.");
+      throw new Error("Browser connection is not configured. Start a new bot turn from JLFBot.");
     }
     const body = JSON.stringify({ method: message.method, params: message.params ?? {} });
     if (Buffer.byteLength(body) > MAX_INPUT_BYTES) throw new Error("Browser request exceeded the size limit.");
@@ -69,7 +69,7 @@ export async function browserProxyRequest(
 }
 
 function run(): void {
-  const connection = { url: process.env.OMB_HARNESS_URL ?? "", token: process.env.OMB_BROWSER_TOKEN ?? "" };
+  const connection = { url: process.env.JLFBOT_HARNESS_URL ?? "", token: process.env.JLFBOT_BROWSER_TOKEN ?? "" };
   let input = Buffer.alloc(0);
   let pending = 0;
   const output = (message: unknown) => {

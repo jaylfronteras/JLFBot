@@ -11,7 +11,7 @@ describe("package export", () => {
       name: "Monthly team", authorName: "Tester", groups: [],
       bots: [{ id: "b1", threadId: "t1", name: "Lead", color: "green", createdAt: 1 } as BotRecord],
       routines: [{ id: "r1", name: "Close the month", prompt: "Prepare a report", target: "bot", botId: "b1",
-        runOn: "maus", enabled: true, schedule, durationMinutes: 30, nextRunAt: 1, createdAt: 1, updatedAt: 1,
+        runOn: "jlf", enabled: true, schedule, durationMinutes: 30, nextRunAt: 1, createdAt: 1, updatedAt: 1,
         overlap: "queue", skippedRuns: 4, lastSkippedAt: 1, failureStreak: 2 }],
     });
     expect(exported.package.routines?.[0]).toMatchObject({ schedule, enabledAfterInstall: false });
@@ -73,7 +73,7 @@ describe("package export", () => {
           prompt: "Verify release readiness.",
           target: "bot",
           botId: "private-id",
-          runOn: "maus",
+          runOn: "jlf",
           enabled: true,
           schedule: { type: "daily", time: "09:00", weekdays: [1] },
           durationMinutes: 30,
@@ -95,7 +95,7 @@ describe("package export", () => {
           target: "room-goal",
           groupId: "private-room-id",
           botId: "private-id",
-          runOn: "maus",
+          runOn: "jlf",
           enabled: true,
           schedule: { type: "daily", time: "10:00", weekdays: [1] },
           durationMinutes: 30,
@@ -109,7 +109,7 @@ describe("package export", () => {
           prompt: "Watch release readiness.",
           target: "bot",
           botId: "private-id",
-          runOn: "maus",
+          runOn: "jlf",
           enabled: true,
           schedule: {
             type: "interval",
@@ -149,7 +149,7 @@ describe("package export", () => {
     expect(exported.package.routines?.[1]?.timeoutMinutes).toBe(20);
 
     expect(exported).toMatchObject({
-      format: "openmaus.package",
+      format: "jlfbot.package",
       package: {
         chiefOfStaff: "lead",
         requirements: { apps: [{ slug: "github" }] },

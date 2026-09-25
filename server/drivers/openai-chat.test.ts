@@ -47,7 +47,7 @@ describe("createOpenAIChatRuntime tool approvals", () => {
   afterEach(() => { for (const d of mcpDir.splice(0)) rmSync(d, { recursive: true, force: true }); });
 
   const toolServer = () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-chat-approval-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-chat-approval-"));
     mcpDir.push(dir);
     const script = join(dir, "fake-mcp.mjs");
     writeFileSync(script, `#!/usr/bin/env node

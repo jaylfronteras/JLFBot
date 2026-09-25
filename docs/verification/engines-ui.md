@@ -16,7 +16,7 @@ useful for checking error presentation, not evidence that provider auth works.
 Icon updates are the exception: fixture middleware stores them only in the
 synthetic instances for the lifetime of the preview process.
 Vite's generated source cache stays in the checkout's ignored
-`.omb-scratch/engine-preview-vite` directory; fixture accounts, home, and app data
+`.jlfbot-scratch/engine-preview-vite` directory; fixture accounts, home, and app data
 remain disposable. Keeping these separate prevents late cache writes from
 recreating a removed fixture directory.
 

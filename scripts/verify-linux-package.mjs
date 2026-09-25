@@ -165,7 +165,7 @@ function verifyCompliance(licenses, label) {
   const registryIds = new Set();
   for (const component of registry) {
     const packageId = component.properties?.find(
-      (property) => property.name === "openmausbot:cargo:package-id",
+      (property) => property.name === "jlfbot:cargo:package-id",
     )?.value;
     if (typeof packageId !== "string" || !packageId.startsWith("registry+")) {
       fail(`${label} SBOM registry component has no exact Cargo package ID`);
@@ -432,7 +432,7 @@ for (const expected of [
   if (!fields.includes(expected)) fail(`DEB metadata is missing ${JSON.stringify(expected)}`);
 }
 
-const extracted = mkdtempSync(path.join(tmpdir(), "omb-deb-verify-"));
+const extracted = mkdtempSync(path.join(tmpdir(), "jlfbot-deb-verify-"));
 try {
   execFileSync("dpkg-deb", ["--extract", deb, extracted]);
   const debAppRoot = path.join(extracted, "opt", "JLFBot");
@@ -484,7 +484,7 @@ try {
   rmSync(extracted, { recursive: true, force: true });
 }
 
-const appImageExtracted = mkdtempSync(path.join(tmpdir(), "omb-appimage-verify-"));
+const appImageExtracted = mkdtempSync(path.join(tmpdir(), "jlfbot-appimage-verify-"));
 try {
   const offset = execFileSync(appImage, ["--appimage-offset"], {
     encoding: "utf8",

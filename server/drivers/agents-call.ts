@@ -51,14 +51,14 @@ export interface ToolCallResult {
 }
 
 /** The context a spawned proxy was given, with a fresh set of turn guards:
- *   OMB_BOT_ID, OMB_THREAD_ID, OMB_TURN_DEPTH, plus the catalog switches
+ *   JLFBOT_BOT_ID, JLFBOT_THREAD_ID, JLFBOT_TURN_DEPTH, plus the catalog switches
  *   (agents-catalog.ts) and the harness address and token (agents-client.ts). */
 export function toolCallContextFromEnv(env: NodeJS.ProcessEnv): ToolCallContext {
   const profile = catalogProfileFromEnv(env);
   return {
     botId: profile.botId,
-    threadId: env.OMB_THREAD_ID ?? "",
-    depth: Number(env.OMB_TURN_DEPTH ?? "0") || 0,
+    threadId: env.JLFBOT_THREAD_ID ?? "",
+    depth: Number(env.JLFBOT_TURN_DEPTH ?? "0") || 0,
     externalRuntime: profile.externalRuntime,
     coordinating: profile.coordinating,
     sharedComputers: profile.sharedComputers,
@@ -318,8 +318,8 @@ function routineFields(args: Json): { fields: Json; error?: string } {
   }
   const runOn = destination(args.run_on ?? args.runOn);
   const timeoutMinutes = args.timeout_minutes ?? args.timeoutMinutes;
-  if (runOn != null && runOn !== "maus" && runOn !== "cloud") {
-    return { fields, error: 'Use run_on="maus" for the bot’s current model and configured computer (including VPS), or run_on="box" only for the Box-hosted agent. Legacy "cloud" also means Box.' };
+  if (runOn != null && runOn !== "jlf" && runOn !== "cloud") {
+    return { fields, error: 'Use run_on="jlf" for the bot’s current model and configured computer (including VPS), or run_on="box" only for the Box-hosted agent. Legacy "cloud" also means Box.' };
   }
   if (timeoutMinutes != null && (
     typeof timeoutMinutes !== "number" || !Number.isInteger(timeoutMinutes) || timeoutMinutes < 5 || timeoutMinutes > 240
@@ -823,7 +823,7 @@ export async function callTool(name: string, args: Json, context: ToolCallContex
       return { text: `${r.label ?? CREDENTIAL_TARGETS[credentialId].label} is already configured. Continue the task.` };
     }
     return {
-      text: `A secure ${r.label ?? CREDENTIAL_TARGETS[credentialId].label} request is ready. The desktop app and a freshly QR-paired mobile app show its secure entry card; older mobile pairings explain how to pair again or finish on the computer. End this turn; OpenMausBot will resume the task after the user saves or declines. Never ask them to paste the key into chat.`,
+      text: `A secure ${r.label ?? CREDENTIAL_TARGETS[credentialId].label} request is ready. The desktop app and a freshly QR-paired mobile app show its secure entry card; older mobile pairings explain how to pair again or finish on the computer. End this turn; JLFBot will resume the task after the user saves or declines. Never ask them to paste the key into chat.`,
     };
   }
   if (name === "list_routines") {

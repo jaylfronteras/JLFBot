@@ -138,7 +138,7 @@ const computerControlSnapshotSchema = z.object({
   helpReason: z.string().nullable().optional().default(null),
 }).passthrough();
 
-const PANEL_WIDTH_KEY = "omb-computer-panel-width";
+const PANEL_WIDTH_KEY = "jlfbot-computer-panel-width";
 const PANEL_MIN_WIDTH = 360;
 const PANEL_MAX_WIDTH = 960;
 const PANEL_DEFAULT_WIDTH = 400;
@@ -1179,7 +1179,7 @@ export function ComputerPanel({
   };
 
   const openVmSettings = () => {
-    window.sessionStorage.setItem("openmausbot.settings.section", "computer");
+    window.sessionStorage.setItem("jlfbot.settings.section", "computer");
     dispatch({ type: "toggleAppSettings", open: true });
   };
 
@@ -1305,7 +1305,7 @@ export function ComputerPanel({
 
       {panelView === "routines" ? (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <RoutinesSection key={bot.id} bot={bot} routines={botRoutines} runs={state.routineRuns} defaultRunOn={cloudRoutineReady ? "cloud" : "maus"} />
+          <RoutinesSection key={bot.id} bot={bot} routines={botRoutines} runs={state.routineRuns} defaultRunOn={cloudRoutineReady ? "cloud" : "jlf"} />
         </div>
       ) : panelView === "browser" && browserEnabled ? (
         <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">

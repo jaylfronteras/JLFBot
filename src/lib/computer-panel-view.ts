@@ -1,6 +1,6 @@
 export type ComputerPanelView = "computer" | "android" | "browser" | "routines";
 
-const STORAGE_PREFIX = "omb-computer-panel-view";
+const STORAGE_PREFIX = "jlfbot-computer-panel-view";
 
 function storageKey(botId: string): string {
   return `${STORAGE_PREFIX}:${botId}`;

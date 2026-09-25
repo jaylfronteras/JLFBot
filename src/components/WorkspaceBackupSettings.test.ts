@@ -31,7 +31,7 @@ function render(recovery = false) {
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 const submit = (form: Node) => form.props.onSubmit!({ preventDefault: vi.fn() });
 const change = (input: Node, value: string) => input.props.onChange!({ target: { value } });
-const summary: WorkspaceBackupSummary = { format: "openmaus.workspace-backup", version: 1, id: "archive-id", createdAt: "2026-09-11T00:00:00Z", appVersion: "0.1.71", files: 9, directories: 3, bytes: 1234, bots: 2, groups: 1, threads: 4, messages: 8, warnings: ["Fixture warning"], exclusions: ["Saved account credentials and connections", "External CLI sign-ins"] };
+const summary: WorkspaceBackupSummary = { format: "jlfbot.workspace-backup", version: 1, id: "archive-id", createdAt: "2026-09-11T00:00:00Z", appVersion: "0.1.71", files: 9, directories: 3, bytes: 1234, bots: 2, groups: 1, threads: 4, messages: 8, warnings: ["Fixture warning"], exclusions: ["Saved account credentials and connections", "External CLI sign-ins"] };
 let storage: Map<string, string>;
 beforeEach(() => {
   fixture.values = []; fixture.index = 0; fixture.effects = []; fixture.api.mockReset();
@@ -45,7 +45,7 @@ async function ready() { fixture.api.mockResolvedValueOnce({ busy: false }); ren
 describe("Settings full backups", () => {
   it("shows a native file input, password fields and validated summary with warnings", () => {
     const html = render().html;
-    expect(html).toContain('type="file" accept=".ombbackup"');
+    expect(html).toContain('type="file" accept=".jlfbotbackup"');
     expect(html.match(/type="password"/g)).toHaveLength(3);
     expect(html).toContain("remote VM disks");
     expect(html).toContain("Saved account credentials and connections are not included");
@@ -58,20 +58,20 @@ describe("Settings full backups", () => {
 
   it("exports encrypted state by POST and downloads without putting the password in a URL or storage", async () => {
     await ready();
-    storage.set("omb-drafts", "private draft"); storage.set("auth-token", "not exported"); storage.set("omb-webhook-credentials", "not exported either");
+    storage.set("jlfbot-drafts", "private draft"); storage.set("auth-token", "not exported"); storage.set("jlfbot-webhook-credentials", "not exported either");
     let view = render();
     const passwords = view.nodes.filter((node) => node.type === "input" && node.props.type === "password");
     change(passwords[0], "correct horse battery"); change(passwords[1], "correct horse battery");
     view = render();
     const link = { href: "", download: "", click: vi.fn(), remove: vi.fn() };
     vi.stubGlobal("document", { createElement: () => link, body: { append: vi.fn() } });
-    fixture.api.mockResolvedValueOnce({ id: "download-id", filename: "fixture.ombbackup" });
+    fixture.api.mockResolvedValueOnce({ id: "download-id", filename: "fixture.jlfbotbackup" });
     const form = view.nodes.find((node) => node.type === "form")!;
     submit(form); submit(form); await flush();
     expect(fixture.api).toHaveBeenCalledTimes(2); // one status, one export
     const [path, init] = fixture.api.mock.calls[1];
     expect(path).toBe("/api/workspace-backup/export");
-    expect(JSON.parse(init.body)).toEqual({ password: "correct horse battery", clientState: { "omb-drafts": "private draft" } });
+    expect(JSON.parse(init.body)).toEqual({ password: "correct horse battery", clientState: { "jlfbot-drafts": "private draft" } });
     expect(link.href).toBe("/api/workspace-backup/download/download-id");
     expect(link.click).toHaveBeenCalledOnce();
     expect([...storage.values()]).not.toContain("correct horse battery");
@@ -80,7 +80,7 @@ describe("Settings full backups", () => {
 
   it("uploads a raw file, validates it, and requires exact REPLACE with the staged ID", async () => {
     await ready();
-    const file = new File(["encrypted fixture"], "fixture.ombbackup");
+    const file = new File(["encrypted fixture"], "fixture.jlfbotbackup");
     render().nodes.find((node) => node.props.type === "file")!.props.onChange!({ target: { files: [file] } });
     let view = render();
     change(view.nodes.filter((node) => node.props.type === "password")[2], "correct horse battery");
@@ -97,13 +97,13 @@ describe("Settings full backups", () => {
     fixture.api.mockResolvedValueOnce({ restartRequired: true, restoreId: "stage-id" });
     replace().props.onClick!(); await flush();
     expect(JSON.parse(fixture.api.mock.calls[3][1].body)).toEqual({ id: "stage-id", confirmation: "REPLACE" });
-    expect(storage.get("omb-pending-workspace-restore")).toBe("stage-id");
-    expect(render().html).toContain("Fully quit OpenMausBot");
+    expect(storage.get("jlfbot-pending-workspace-restore")).toBe("stage-id");
+    expect(render().html).toContain("Fully quit JLFBot");
   });
 
   it("does not offer a replacement after failed password validation", async () => {
     await ready();
-    render().nodes.find((node) => node.props.type === "file")!.props.onChange!({ target: { files: [new File(["archive"], "file.ombbackup")] } });
+    render().nodes.find((node) => node.props.type === "file")!.props.onChange!({ target: { files: [new File(["archive"], "file.jlfbotbackup")] } });
     change(render().nodes.filter((node) => node.props.type === "password")[2], "wrong password");
     fixture.api.mockResolvedValueOnce({ id: "upload" }).mockRejectedValueOnce(new Error("Wrong password"));
     submit(render().nodes.filter((node) => node.type === "form")[1]); await flush();
@@ -113,7 +113,7 @@ describe("Settings full backups", () => {
 
   it("reuploads the selected file if its upload or validated stage expires", async () => {
     await ready();
-    const file = new File(["archive"], "file.ombbackup");
+    const file = new File(["archive"], "file.jlfbotbackup");
     render().nodes.find((node) => node.props.type === "file")!.props.onChange!({ target: { files: [file] } });
     const validate = async () => { change(render().nodes.filter((node) => node.props.type === "password")[2], "correct horse battery"); submit(render().nodes.filter((node) => node.type === "form")[1]); await flush(); };
     const expired = Object.assign(new Error("Backup expired; upload again"), { status: 404 });
@@ -132,45 +132,45 @@ describe("Settings full backups", () => {
   });
 
   it("does not restore client state before restart, then replaces only the initiating browser's allowlist", async () => {
-    storage.set("omb-pending-workspace-restore", "stage-id"); storage.set("omb-drafts", "old"); storage.set("auth-token", "keep");
+    storage.set("jlfbot-pending-workspace-restore", "stage-id"); storage.set("jlfbot-drafts", "old"); storage.set("auth-token", "keep");
     fixture.api.mockResolvedValueOnce({ busy: true, pendingRestore: true });
     expect(render(true).html).not.toContain("Continue without restoring drafts");
     fixture.effects[0](); await flush();
-    expect(render(true).html).toContain("Fully quit OpenMausBot");
+    expect(render(true).html).toContain("Fully quit JLFBot");
     expect(render(true).html).not.toContain("Continue without restoring drafts");
-    expect(fixture.api).toHaveBeenCalledOnce(); expect(storage.get("omb-drafts")).toBe("old");
+    expect(fixture.api).toHaveBeenCalledOnce(); expect(storage.get("jlfbot-drafts")).toBe("old");
     fixture.values = [];
-    fixture.api.mockResolvedValueOnce({ busy: false, lastRestoreId: "stage-id" }).mockResolvedValueOnce({ clientState: { "omb-drafts": "restored" } });
+    fixture.api.mockResolvedValueOnce({ busy: false, lastRestoreId: "stage-id" }).mockResolvedValueOnce({ clientState: { "jlfbot-drafts": "restored" } });
     render(true); fixture.effects[0](); await flush();
-    expect(storage.get("omb-drafts")).toBe("restored"); expect(storage.get("auth-token")).toBe("keep");
-    expect(storage.has("omb-pending-workspace-restore")).toBe(false); expect(window.location.reload).toHaveBeenCalledOnce();
+    expect(storage.get("jlfbot-drafts")).toBe("restored"); expect(storage.get("auth-token")).toBe("keep");
+    expect(storage.has("jlfbot-pending-workspace-restore")).toBe(false); expect(window.location.reload).toHaveBeenCalledOnce();
   });
 
   it("never imports a different restore's browser state", async () => {
-    storage.set("omb-pending-workspace-restore", "my-stage"); storage.set("omb-drafts", "keep");
+    storage.set("jlfbot-pending-workspace-restore", "my-stage"); storage.set("jlfbot-drafts", "keep");
     fixture.api.mockResolvedValueOnce({ busy: false, lastRestoreId: "another-stage" });
     render(true); fixture.effects[0](); await flush();
     expect(fixture.api).toHaveBeenCalledOnce();
     expect(render(true).html).toContain("Normal app");
-    expect(storage.get("omb-drafts")).toBe("keep");
-    expect(storage.has("omb-pending-workspace-restore")).toBe(false);
+    expect(storage.get("jlfbot-drafts")).toBe("keep");
+    expect(storage.has("jlfbot-pending-workspace-restore")).toBe(false);
     expect(window.location.reload).not.toHaveBeenCalled();
   });
 
   it("keeps the normal app gated and its old drafts intact on recovery failure", async () => {
-    storage.set("omb-pending-workspace-restore", "stage-id"); storage.set("omb-drafts", "keep");
+    storage.set("jlfbot-pending-workspace-restore", "stage-id"); storage.set("jlfbot-drafts", "keep");
     fixture.api.mockResolvedValueOnce({ busy: false, lastRestoreId: "stage-id" }).mockRejectedValueOnce(new Error("Fixture unavailable"));
     render(true); fixture.effects[0](); await flush();
     const html = render(true).html;
     expect(html).toContain("Fixture unavailable"); expect(html).toContain("Retry"); expect(html).not.toContain("Normal app");
-    expect(storage.get("omb-drafts")).toBe("keep"); expect(storage.get("omb-pending-workspace-restore")).toBe("stage-id");
+    expect(storage.get("jlfbot-drafts")).toBe("keep"); expect(storage.get("jlfbot-pending-workspace-restore")).toBe("stage-id");
     expect(window.location.reload).not.toHaveBeenCalled();
   });
 
   it.each([401, 403])("explicitly returns to normal bootstrap after a %s without changing browser state", async (status) => {
-    storage.set("omb-pending-workspace-restore", "stage-id");
-    storage.set("omb-drafts", "keep drafts"); storage.set("omb-draft-attachments", "keep attachments");
-    storage.set("omb-skin", "keep preferences"); storage.set("auth-token", "keep session");
+    storage.set("jlfbot-pending-workspace-restore", "stage-id");
+    storage.set("jlfbot-drafts", "keep drafts"); storage.set("jlfbot-draft-attachments", "keep attachments");
+    storage.set("jlfbot-skin", "keep preferences"); storage.set("auth-token", "keep session");
     const before = new Map(storage);
     if (status === 403) fixture.api.mockResolvedValueOnce({ busy: false, lastRestoreId: "stage-id" });
     fixture.api.mockRejectedValueOnce(Object.assign(new Error("Sign-in required"), { status }));
@@ -180,7 +180,7 @@ describe("Settings full backups", () => {
     expect(view.html).not.toContain("Normal app");
     expect(storage).toEqual(before); expect(window.location.reload).not.toHaveBeenCalled();
     view.nodes.find((node) => node.type === "button" && node.props.children === "Continue without restoring drafts")!.props.onClick!();
-    before.delete("omb-pending-workspace-restore");
+    before.delete("jlfbot-pending-workspace-restore");
     expect(storage).toEqual(before);
     expect(window.location.reload).toHaveBeenCalledOnce();
     expect(render(true).html).not.toContain("Normal app"); // bootstrap, not a direct authentication bypass
@@ -188,13 +188,13 @@ describe("Settings full backups", () => {
   });
 
   it("keeps recovery gated if its marker cannot be cleared", async () => {
-    storage.set("omb-pending-workspace-restore", "stage-id"); storage.set("omb-drafts", "keep");
+    storage.set("jlfbot-pending-workspace-restore", "stage-id"); storage.set("jlfbot-drafts", "keep");
     fixture.api.mockRejectedValueOnce(new Error("Sign-in required"));
     render(true); fixture.effects[0](); await flush();
     vi.spyOn(localStorage, "removeItem").mockImplementation(() => { throw new Error("Storage unavailable"); });
     render(true).nodes.find((node) => node.type === "button" && node.props.children === "Continue without restoring drafts")!.props.onClick!();
     expect(render(true).html).toContain("Storage unavailable"); expect(render(true).html).not.toContain("Normal app");
-    expect(storage.get("omb-drafts")).toBe("keep"); expect(storage.get("omb-pending-workspace-restore")).toBe("stage-id");
+    expect(storage.get("jlfbot-drafts")).toBe("keep"); expect(storage.get("jlfbot-pending-workspace-restore")).toBe("stage-id");
     expect(window.location.reload).not.toHaveBeenCalled();
   });
 });

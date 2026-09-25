@@ -1,6 +1,6 @@
 # JLFBot Personal Fork Architecture
 
-JLFBot is a private, single-owner AI agent workspace derived from the Apache-2.0 core of OpenMausBot.
+JLFBot is a private, single-owner AI agent workspace derived from the Apache-2.0 core of JLFBot.
 
 ## Fork policy
 

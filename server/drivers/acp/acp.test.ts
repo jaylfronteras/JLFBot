@@ -83,8 +83,8 @@ const ClassifiedErrorDriver = createAcpDriver({
 });
 
 const CONTROL_PLANE_FIXTURE = {
-  OMB_CLOUD_READY_TOKEN: "ready-should-not-leak", OMB_CLOUD_BOOTSTRAP: "bootstrap-should-not-leak",
-  OMB_LICENSE_KEY: "license-should-not-leak", OMB_INSTALLATION_CREDENTIAL: "fleet-should-not-leak",
+  JLFBOT_CLOUD_READY_TOKEN: "ready-should-not-leak", JLFBOT_CLOUD_BOOTSTRAP: "bootstrap-should-not-leak",
+  JLFBOT_LICENSE_KEY: "license-should-not-leak", JLFBOT_INSTALLATION_CREDENTIAL: "fleet-should-not-leak",
 };
 
 describe("skipSubscriptionAuthForLocalInject", () => {
@@ -218,7 +218,7 @@ describe("ACP turns (fake CLI)", () => {
   beforeEach(() => {
     ensureDirs();
     chmodSync(FAKE_CLI, 0o755);
-    scratch = mkdtempSync(join(tmpdir(), "omb-acp-test-"));
+    scratch = mkdtempSync(join(tmpdir(), "jlfbot-acp-test-"));
   });
 
   afterEach(async () => {
@@ -237,7 +237,7 @@ describe("ACP turns (fake CLI)", () => {
     delete process.env.CURSOR_API_KEY;
     delete process.env.CURSOR_AUTH_TOKEN;
     delete process.env.BOX_TOKEN;
-    delete process.env.OMB_TTS_KEY;
+    delete process.env.JLFBOT_TTS_KEY;
     for (const name of Object.keys(CONTROL_PLANE_FIXTURE)) delete process.env[name];
     delete process.env.FAKE_ACP_MODELS;
     delete process.env.FAKE_ACP_MODEL_STICKS;
@@ -247,9 +247,9 @@ describe("ACP turns (fake CLI)", () => {
     delete process.env.FAKE_ACP_IMAGE_CAPABILITY;
     delete process.env.FAKE_ACP_GROK_VERSION;
     delete process.env.FAKE_ACP_DUMP_PROMPT;
-    delete process.env.OPENMAUS_ACP_PROMPT_IDLE_TIMEOUT_MS;
-    delete process.env.OMB_ACP_SESSION_IDLE_MS;
-    delete process.env.OMB_ACP_SESSION_IDLE_MIN_MS;
+    delete process.env.JLFBOT_ACP_PROMPT_IDLE_TIMEOUT_MS;
+    delete process.env.JLFBOT_ACP_SESSION_IDLE_MS;
+    delete process.env.JLFBOT_ACP_SESSION_IDLE_MIN_MS;
     delete process.env.FAKE_ACP_LAUNCH_COUNT_FILE;
     recorder?.stop();
     await instance?.dispose();
@@ -469,7 +469,7 @@ describe("ACP turns (fake CLI)", () => {
     // workspace credentials with no CLI consumer at all — held by the
     // harness (env-injected at boot by the desktop shell), used in-process
     process.env.BOX_TOKEN = "box-should-not-leak";
-    process.env.OMB_TTS_KEY = "tts-should-not-leak";
+    process.env.JLFBOT_TTS_KEY = "tts-should-not-leak";
     Object.assign(process.env, CONTROL_PLANE_FIXTURE);
 
     await instance.adapter.sendTurn({ threadId: "t-hygiene", text: "go" });
@@ -484,7 +484,7 @@ describe("ACP turns (fake CLI)", () => {
     expect(seen.env.CURSOR_API_KEY).toBeUndefined();
     expect(seen.env.CURSOR_AUTH_TOKEN).toBeUndefined();
     expect(seen.env.BOX_TOKEN).toBeUndefined();
-    expect(seen.env.OMB_TTS_KEY).toBeUndefined();
+    expect(seen.env.JLFBOT_TTS_KEY).toBeUndefined();
     for (const name of Object.keys(CONTROL_PLANE_FIXTURE)) expect(seen.env[name]).toBeUndefined();
   });
 
@@ -502,7 +502,7 @@ describe("ACP turns (fake CLI)", () => {
         composio: {
           command: process.execPath,
           args: ["/tmp/connector-proxy.js"],
-          env: { OMB_CONNECTOR_UPSTREAM_URL: "http://127.0.0.1:8799/api/internal/connectors/mcp" },
+          env: { JLFBOT_CONNECTOR_UPSTREAM_URL: "http://127.0.0.1:8799/api/internal/connectors/mcp" },
         },
       },
     });
@@ -511,7 +511,7 @@ describe("ACP turns (fake CLI)", () => {
       name: "composio",
       command: process.execPath,
       args: ["/tmp/connector-proxy.js"],
-      env: [{ name: "OMB_CONNECTOR_UPSTREAM_URL", value: "http://127.0.0.1:8799/api/internal/connectors/mcp" }],
+      env: [{ name: "JLFBOT_CONNECTOR_UPSTREAM_URL", value: "http://127.0.0.1:8799/api/internal/connectors/mcp" }],
     });
   });
 
@@ -965,7 +965,7 @@ describe("ACP turns (fake CLI)", () => {
   });
 
   it("does not expire an agent while a person is answering an approval", async () => {
-    process.env.OPENMAUS_ACP_PROMPT_IDLE_TIMEOUT_MS = "150";
+    process.env.JLFBOT_ACP_PROMPT_IDLE_TIMEOUT_MS = "150";
     await create(GrokAgentDriver, "permission");
     await instance.adapter.sendTurn({ threadId: "t-idle-approval", text: "go", approvalMode: "ask" });
     const opened = await recorder.until(e => e.type === "request.opened");
@@ -978,7 +978,7 @@ describe("ACP turns (fake CLI)", () => {
   });
 
   it("an agent that goes silent mid-answer is failed and closed by the prompt idle guard", async () => {
-    process.env.OPENMAUS_ACP_PROMPT_IDLE_TIMEOUT_MS = "150";
+    process.env.JLFBOT_ACP_PROMPT_IDLE_TIMEOUT_MS = "150";
     await create(GrokAgentDriver, "stall-after-text");
     await instance.adapter.sendTurn({ threadId: "t-stall", text: "go" });
 
@@ -986,7 +986,7 @@ describe("ACP turns (fake CLI)", () => {
     expect(done).toMatchObject({ type: "turn.completed", ok: false, stopReason: "rpc_error" });
     const err = recorder.events.find((e) => e.type === "runtime.error");
     expect(err?.message).toMatch(/went fully silent/i);
-    expect(err?.message).toContain("OPENMAUS_ACP_PROMPT_IDLE_TIMEOUT_MS");
+    expect(err?.message).toContain("JLFBOT_ACP_PROMPT_IDLE_TIMEOUT_MS");
     // the streamed chunk reached the UI before the child went silent
     expect(recorder.events.some((e) => e.type === "content.delta")).toBe(true);
     expect(instance.adapter.hasSession("t-stall")).toBe(false);
@@ -1398,8 +1398,8 @@ describe("ACP turns (fake CLI)", () => {
     });
 
     it("closes the idle process and resumes on the next turn", async () => {
-      process.env.OMB_ACP_SESSION_IDLE_MIN_MS = "50";
-      process.env.OMB_ACP_SESSION_IDLE_MS = "100";
+      process.env.JLFBOT_ACP_SESSION_IDLE_MIN_MS = "50";
+      process.env.JLFBOT_ACP_SESSION_IDLE_MS = "100";
       countFile = join(scratch, "launches");
       rpcFile = join(scratch, "rpc.json");
       process.env.FAKE_ACP_LAUNCH_COUNT_FILE = countFile;
@@ -1472,7 +1472,7 @@ describe("ACP turns (fake CLI)", () => {
       const integration = (token: string) => ({
         command: process.execPath,
         args: [FAKE_CLI],
-        env: { OMB_COMMS_TOKEN: token },
+        env: { JLFBOT_COMMS_TOKEN: token },
       });
       const first = await instance.adapter.sendTurn({
         threadId: "t-pool-token",
@@ -1513,7 +1513,7 @@ describe("ACP turns (fake CLI)", () => {
       const integration = (token: string) => ({
         command: process.execPath,
         args: [FAKE_CLI],
-        env: { OMB_COMMS_TOKEN: token },
+        env: { JLFBOT_COMMS_TOKEN: token },
       });
       const first = await instance.adapter.sendTurn({
         threadId: "t-pool-reject",
@@ -1598,7 +1598,7 @@ describe("ACP snapshot", () => {
   });
 
   it("kimi checks KIMI_CODE_HOME before the child HOME", async () => {
-    const scratch = mkdtempSync(join(tmpdir(), "omb-kimi-auth-"));
+    const scratch = mkdtempSync(join(tmpdir(), "jlfbot-kimi-auth-"));
     const kimiHome = join(scratch, "custom-kimi-home");
     const childHome = join(scratch, "child-home");
     mkdirSync(join(childHome, ".kimi-code", "credentials"), { recursive: true });
@@ -1623,7 +1623,7 @@ describe("ACP snapshot", () => {
   });
 
   it("droid resolves the signed-in CLI before falling back to FACTORY_API_KEY", async () => {
-    const scratch = mkdtempSync(join(tmpdir(), "omb-droid-auth-"));
+    const scratch = mkdtempSync(join(tmpdir(), "jlfbot-droid-auth-"));
     // FACTORY_HOME_OVERRIDE replaces the CLI's HOME, not its data root: droid
     // writes <home>/.factory/auth.v2.file either way (verified against 0.196.0).
     const overrideHome = join(scratch, "custom-home");
@@ -1686,7 +1686,7 @@ describe("ACP snapshot", () => {
   });
 
   it("droid reads custom models, favourites order, and the configured default", async () => {
-    const scratch = mkdtempSync(join(tmpdir(), "omb-droid-models-"));
+    const scratch = mkdtempSync(join(tmpdir(), "jlfbot-droid-models-"));
     mkdirSync(join(scratch, ".factory"), { recursive: true });
     writeFileSync(
       join(scratch, ".factory", "settings.json"),
@@ -1722,7 +1722,7 @@ describe("ACP snapshot", () => {
   });
 
   it("droid falls back to the built-in catalog when settings.json is unreadable", async () => {
-    const scratch = mkdtempSync(join(tmpdir(), "omb-droid-nosettings-"));
+    const scratch = mkdtempSync(join(tmpdir(), "jlfbot-droid-nosettings-"));
     mkdirSync(join(scratch, ".factory"), { recursive: true });
     writeFileSync(join(scratch, ".factory", "settings.json"), "{ not json");
 
@@ -1743,7 +1743,7 @@ describe("ACP snapshot", () => {
   });
 
   it("kimi resolves default credentials from the child HOME", async () => {
-    const scratch = mkdtempSync(join(tmpdir(), "omb-kimi-home-"));
+    const scratch = mkdtempSync(join(tmpdir(), "jlfbot-kimi-home-"));
     const credentialDir = join(scratch, ".kimi-code", "credentials");
     mkdirSync(credentialDir, { recursive: true });
     writeFileSync(join(credentialDir, "kimi-code.json"), "{}");

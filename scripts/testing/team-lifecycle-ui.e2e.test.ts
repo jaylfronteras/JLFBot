@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import { resolveAgentBrowserBinary } from "../../server/browser-engine.ts";
 import { waitForExit } from "../../server/testing/cleanup.ts";
-import { runControlOmb } from "../control-omb.ts";
+import { runControlOmb } from "../control-jlfbot.ts";
 import { request } from "../mcp-server.ts";
-import { UI_TOOLS_DIR } from "./control-omb-ui.ts";
+import { UI_TOOLS_DIR } from "./control-jlfbot-ui.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const binary = resolveAgentBrowserBinary({ dataDir: UI_TOOLS_DIR, env: process.env });
-const enabled = process.env.OMB_UI_E2E === "1" || Boolean(binary);
-if (!enabled) console.log("skipping team lifecycle UI e2e: set OMB_UI_E2E=1 to install the pinned browser");
+const enabled = process.env.JLFBOT_UI_E2E === "1" || Boolean(binary);
+if (!enabled) console.log("skipping team lifecycle UI e2e: set JLFBOT_UI_E2E=1 to install the pinned browser");
 
 (enabled ? it : it.skip)("creates an empty team, moves bots, and manages shared instructions in the renderer", async () => {
   let child: ChildProcess | undefined;
@@ -22,7 +22,7 @@ if (!enabled) console.log("skipping team lifecycle UI e2e: set OMB_UI_E2E=1 to i
   try {
     let stdout = "", stderr = "";
     let info: { ui: string; url: string; botId: string; logPath: string };
-    child = spawn(process.execPath, ["--experimental-strip-types", join(ROOT, "scripts/control-omb.ts"), "ui", "launch"], {
+    child = spawn(process.execPath, ["--experimental-strip-types", join(ROOT, "scripts/control-jlfbot.ts"), "ui", "launch"], {
       cwd: ROOT, env: process.env, stdio: ["ignore", "pipe", "pipe"],
     });
     child.stdout!.on("data", (chunk: Buffer) => { stdout += String(chunk); });
@@ -107,7 +107,7 @@ if (!enabled) console.log("skipping team lifecycle UI e2e: set OMB_UI_E2E=1 to i
     await manage("Launch");
     await expect.poll(snapshot, { timeout: 10_000 }).toContain("Edit Launch shared instructions");
     expect((await api("/api/section-context?section=Launch")).text).toBe("Research first, then build and review.");
-    const screenshot = join(ROOT, ".omb-scratch", "verify-evidence", "team-lifecycle.png");
+    const screenshot = join(ROOT, ".jlfbot-scratch", "verify-evidence", "team-lifecycle.png");
     await ui("screenshot", "--out", screenshot);
     await click("Delete Launch team");
     await expect.poll(snapshot, { timeout: 10_000 }).toContain('alertdialog "Delete Launch team?"');

@@ -11,7 +11,7 @@ import { createProxyHandler, proxyHeadersTimeoutMs } from "../src/proxy.ts";
 import type { CompanionEndpoint } from "../src/endpoints.ts";
 import { scrub } from "../src/wire.ts";
 
-const TOKEN = "omb_test_token";
+const TOKEN = "jlf_test_token";
 
 /** Nested past any plausible stack, so `scrub`'s recursion gives out while
  * JSON.parse does not. The payload is what the scrubber is meant to remove. */
@@ -56,8 +56,8 @@ const device = async (
 
 beforeAll(async () => {
   harness = createServer((req, res) => {
-    companionMarker = String(req.headers["x-openmausbot-companion"] ?? "");
-    companionDevice = String(req.headers["x-openmausbot-companion-device"] ?? "");
+    companionMarker = String(req.headers["x-jlfbot-companion"] ?? "");
+    companionDevice = String(req.headers["x-jlfbot-companion-device"] ?? "");
     respond(res);
   });
   const harnessPort = await listen(harness);
@@ -105,7 +105,7 @@ describe("preparing a harness response for a device", () => {
       for (const action of ["join", "screenshot"]) {
         const { status, text } = await device(`/api/bots/b1/computer/${action}`, "POST");
         expect(status).toBe(403);
-        expect(text).toContain("enable it in OpenMausBot");
+        expect(text).toContain("enable it in JLFBot");
         expect(text).toContain("Settings → Remote access");
       }
     } finally {
@@ -133,7 +133,7 @@ describe("preparing a harness response for a device", () => {
     const response = await fetch(`http://127.0.0.1:${sidecarPort}/api/bots`, {
       headers: {
         authorization: `Bearer ${TOKEN}`,
-        "x-openmausbot-companion-device": "another-phone",
+        "x-jlfbot-companion-device": "another-phone",
       },
     });
     expect(response.status).toBe(200);

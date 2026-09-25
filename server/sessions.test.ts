@@ -28,7 +28,7 @@ let registry: SessionRegistry;
 const file = () => join(dir, "sessions.json");
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "omb-sessions-"));
+  dir = mkdtempSync(join(tmpdir(), "jlfbot-sessions-"));
   clock = 1_700_000_000_000;
   registry = new SessionRegistry({ file: file(), now: () => clock });
 });
@@ -39,9 +39,9 @@ describe("the native-app encoding of a pairing window", () => {
     const { code, credential } = registry.openPairing({ label: "Pixel" });
     // The shape the Android companion's parser demands: the 9-character
     // prefix plus exactly 43 base64url characters (Connection.kt).
-    expect(credential.startsWith("omb_pair_")).toBe(true);
+    expect(credential.startsWith("jlf_pair_")).toBe(true);
     expect(credential.length).toBe(52);
-    expect(credential.slice("omb_pair_".length)).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(credential.slice("jlf_pair_".length)).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
     const paired = registry.exchange({ code: credential, label: "Pixel", source: "10.0.0.9" });
     expect(paired.ok).toBe(true);
@@ -56,7 +56,7 @@ describe("the native-app encoding of a pairing window", () => {
     // secret and map distinct secrets onto one digest, so a credential must
     // be hashed exactly as presented. This is the trap the fix exists to
     // avoid, so pin it with a credential that contains every folded symbol.
-    const trap = "omb_pair_0123456789-_abcdefghijklmnopqrstuvwxyzABCDE";
+    const trap = "jlf_pair_0123456789-_abcdefghijklmnopqrstuvwxyzABCDE";
     expect(trap.length).toBe(52);
     expect(normalizePairingCode(trap)).not.toBe(trap);
     expect(isPairingCredential(trap)).toBe(true);
@@ -403,7 +403,7 @@ describe("sessions", () => {
     if (process.platform !== "win32") expect(statSync(file()).mode & 0o777).toBe(0o600); // Windows has no POSIX modes
     const reloaded = new SessionRegistry({ file: file(), now: () => clock });
     expect(reloaded.authenticate(token)?.id).toBe(session.id);
-    expect(reloaded.authenticate("omb_sess_nope")).toBeNull();
+    expect(reloaded.authenticate("jlf_sess_nope")).toBeNull();
   });
 
   it("expires after 30 days and can be revoked", () => {

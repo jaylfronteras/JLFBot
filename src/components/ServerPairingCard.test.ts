@@ -36,7 +36,7 @@ describe("pairing devices from a hosted server's settings", () => {
     expect(pairingBlockedReason({ kind: "unauthenticated", error: "pair" })).toBeNull();
     const html = renderToStaticMarkup(createElement(ServerPairingCard, { initialSession: chatOnly }));
     expect(html).toContain("data-server-pairing-chat-only");
-    expect(html).toContain("openmausbot pair");
+    expect(html).toContain("jlfbot pair");
     expect(html).not.toContain("Create pairing code");
     const admin = renderToStaticMarkup(createElement(ServerPairingCard, { initialSession: { ...chatOnly, scopes: ["admin", "client"] } }));
     expect(admin).toContain("Create pairing code");
@@ -49,10 +49,10 @@ describe("pairing devices from a hosted server's settings", () => {
     expect(html).toContain("data-server-pairing-portal");
     expect(html).toContain("organisation&#x27;s portal");
     expect(html).not.toContain("Create pairing code");
-    expect(html).not.toMatch(/pairing code from|openmausbot pair/);
+    expect(html).not.toMatch(/pairing code from|jlfbot pair/);
     expect(html).toContain("Signed-in devices");
     const member = renderToStaticMarkup(createElement(ServerPairingCard, { initialSession: { ...admin, scopes: ["client"] }, initialPairingCodes: false }));
     expect(member).toContain("data-server-pairing-chat-only");
-    expect(member).not.toContain("openmausbot pair");
+    expect(member).not.toContain("jlfbot pair");
   });
 });

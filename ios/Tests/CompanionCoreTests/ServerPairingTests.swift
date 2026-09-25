@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import CompanionCore
 
-/// Pairing with a server directly (`openmausbot serve`, the Docker stack):
+/// Pairing with a server directly (`jlfbot serve`, the Docker stack):
 /// the `https://host/pair#code=…` link, `POST /api/auth/pair`, and the
 /// connection that comes out of it.
 private final class ServerRequestStub: URLProtocol {
@@ -83,11 +83,11 @@ final class ServerPairingTests: XCTestCase {
     }
 
     func testTheServersLinkBecomesAHostedInviteWithTheNormalizedCode() throws {
-        let invite = try XCTUnwrap(PairingInvite.parse(XCTUnwrap(URL(string: "https://c-7f3a9c.openmausbot.com/pair#code=abcd-efgh-jklm"))))
+        let invite = try XCTUnwrap(PairingInvite.parse(XCTUnwrap(URL(string: "https://c-7f3a9c.jlfbot.example.com/pair#code=abcd-efgh-jklm"))))
         XCTAssertEqual(invite.credential, "ABCDEFGHJKLM")
         XCTAssertEqual(invite.connection.activeEndpoint?.kind, .hosted)
-        XCTAssertEqual(invite.connection.activeEndpoint?.url, "https://c-7f3a9c.openmausbot.com")
-        XCTAssertEqual(invite.connection.host, "c-7f3a9c.openmausbot.com")
+        XCTAssertEqual(invite.connection.activeEndpoint?.url, "https://c-7f3a9c.jlfbot.example.com")
+        XCTAssertEqual(invite.connection.host, "c-7f3a9c.jlfbot.example.com")
 
         // a port survives; a plain-http LAN link infers the local kind
         let withPort = try XCTUnwrap(PairingInvite.parse(XCTUnwrap(URL(string: "https://mini.example:8443/pair#code=ABCDEFGHJKLM"))))
@@ -109,20 +109,20 @@ final class ServerPairingTests: XCTestCase {
             XCTAssertNil(PairingInvite.parse(try XCTUnwrap(URL(string: bad))), bad)
         }
         // the companion's own invites still parse
-        XCTAssertNotNil(PairingInvite.parse(try XCTUnwrap(URL(string: "openmausbot://pair?address=192.168.1.9:8810&code=123456"))))
+        XCTAssertNotNil(PairingInvite.parse(try XCTUnwrap(URL(string: "jlfbot://pair?address=192.168.1.9:8810&code=123456"))))
     }
 
     func testServerCodesAreDistinguishedFromCompanionCredentialsByShape() {
         XCTAssertEqual(PairingInvite.normalizedServerCode(" abcd-efgh-jklm "), "ABCDEFGHJKLM")
         XCTAssertNil(PairingInvite.normalizedServerCode("123456"))
-        XCTAssertNil(PairingInvite.normalizedServerCode("omb_pair_" + String(repeating: "a", count: 43)))
+        XCTAssertNil(PairingInvite.normalizedServerCode("jlf_pair_" + String(repeating: "a", count: 43)))
         XCTAssertNil(PairingInvite.normalizedServerCode("ABCDEFGHJKL"))
     }
 
     func testPairingPostsTheCodeWithoutACookieAndKeepsTheBearer() async throws {
         let body = try fixture("auth-pair-response")
         ServerRequestStub.reset { _ in (200, body) }
-        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.openmausbot.com"))
+        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.jlfbot.example.com"))
         let paired = try await CompanionClient.pairWithServer(
             connection: connection,
             code: "ABCDEFGHJKLM",
@@ -130,14 +130,14 @@ final class ServerPairingTests: XCTestCase {
             attemptId: "attempt-1",
             session: session
         )
-        XCTAssertEqual(paired.token, "omb_sess_Zk3vJq8mN2xR7tL9wP4yH6bC1dF5gA0sE8uK2iO7")
+        XCTAssertEqual(paired.token, "jlf_sess_Zk3vJq8mN2xR7tL9wP4yH6bC1dF5gA0sE8uK2iO7")
         XCTAssertEqual(paired.session.scopes, ["client"])
         XCTAssertFalse(paired.session.isAdmin)
         XCTAssertEqual(paired.environment.environmentId, "env_7f3a9c")
         XCTAssertEqual(paired.environment.label, "cab mini")
 
         let request = try XCTUnwrap(ServerRequestStub.captured().first)
-        XCTAssertEqual(request.url?.absoluteString, "https://c-7f3a9c.openmausbot.com/api/auth/pair")
+        XCTAssertEqual(request.url?.absoluteString, "https://c-7f3a9c.jlfbot.example.com/api/auth/pair")
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
         let sent = try XCTUnwrap(ServerRequestStub.body(of: request))
@@ -149,7 +149,7 @@ final class ServerPairingTests: XCTestCase {
 
     func testARefusedCodeSurfacesTheServersOwnMessage() async throws {
         ServerRequestStub.reset { _ in (401, Data(#"{"error":"that code is not valid or has expired"}"#.utf8)) }
-        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.openmausbot.com"))
+        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.jlfbot.example.com"))
         do {
             _ = try await CompanionClient.pairWithServer(connection: connection, code: "ABCDEFGHJKLM", label: "phone", session: session)
             XCTFail("expected a refusal")
@@ -163,10 +163,10 @@ final class ServerPairingTests: XCTestCase {
     func testTheDescriptorIsReadableWithoutASession() async throws {
         let body = try fixture("environment")
         ServerRequestStub.reset { _ in (200, body) }
-        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.openmausbot.com"))
+        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.jlfbot.example.com"))
         let environment = try await CompanionClient(connection: connection, token: nil, session: session).environment()
         XCTAssertEqual(environment, ServerEnvironment(environmentId: "env_7f3a9c", label: "cab mini", platform: "linux", version: "0.1.55"))
-        XCTAssertEqual(ServerRequestStub.captured().first?.url?.path, "/.well-known/openmausbot/environment")
+        XCTAssertEqual(ServerRequestStub.captured().first?.url?.path, "/.well-known/jlfbot/environment")
     }
 
     func testConnectionsSavedBeforeServerPairingStillDecodeAsCompanionOnes() throws {
@@ -198,7 +198,7 @@ final class ServerPairingTests: XCTestCase {
     }
 
     func testEveryRefusalCarriesTheServersStatusAndMessage() async throws {
-        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.openmausbot.com"))
+        let connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.jlfbot.example.com"))
         for (status, message) in [
             (415, "send the pairing code as JSON (content-type: application/json)"),
             (429, "too many failed pairing attempts from your address; try again in 60s"),
@@ -225,7 +225,7 @@ final class ServerPairingTests: XCTestCase {
         let companion = Connection(name: "Ada's computer", host: "192.168.1.9", port: 8810)
         XCTAssertTrue(companion.canAdminister, "the sidecar applies its own policy to each request")
 
-        var chatOnly = try XCTUnwrap(Connection.parse("https://c-7f3a9c.openmausbot.com"))
+        var chatOnly = try XCTUnwrap(Connection.parse("https://c-7f3a9c.jlfbot.example.com"))
         chatOnly.serverEnvironmentId = "env_7f3a9c"
         chatOnly.serverScopes = ["client"]
         XCTAssertFalse(chatOnly.canAdminister)
@@ -239,7 +239,7 @@ final class ServerPairingTests: XCTestCase {
 
         // saved by a build that paired with servers but recorded no scopes:
         // it treated every such pairing as chat-only, and so does this one
-        let earlier = Data(#"{"id":"s1","name":"cab mini","host":"c-7f3a9c.openmausbot.com","port":443,"serverEnvironmentId":"env_7f3a9c"}"#.utf8)
+        let earlier = Data(#"{"id":"s1","name":"cab mini","host":"c-7f3a9c.jlfbot.example.com","port":443,"serverEnvironmentId":"env_7f3a9c"}"#.utf8)
         let decoded = try JSONDecoder().decode(Connection.self, from: earlier)
         XCTAssertTrue(decoded.pairedWithServer)
         XCTAssertNil(decoded.serverScopes)
@@ -247,7 +247,7 @@ final class ServerPairingTests: XCTestCase {
 
         // the pair response is where the scopes come from
         let admin = try JSONDecoder().decode(ServerPairResponse.self, from: Data(#"""
-        {"token":"omb_sess_x","session":{"id":"s","label":"iPhone","scopes":["admin","client"],"createdAt":1,"expiresAt":2},
+        {"token":"jlf_sess_x","session":{"id":"s","label":"iPhone","scopes":["admin","client"],"createdAt":1,"expiresAt":2},
          "environment":{"environmentId":"env","label":"mini","platform":"darwin","version":"0.1.66",
                         "capabilities":{"remoteSessions":true,"selfUpdate":"desktop-managed"}}}
         """#.utf8))
@@ -257,10 +257,10 @@ final class ServerPairingTests: XCTestCase {
 
     func testAServerConnectionsStreamCarriesTheBearerAndResumesFromTheCursor() async throws {
         ServerRequestStub.reset { _ in (401, Data(#"{"error":"session revoked"}"#.utf8)) }
-        var connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.openmausbot.com"))
+        var connection = try XCTUnwrap(Connection.parse("https://c-7f3a9c.jlfbot.example.com"))
         connection.serverEnvironmentId = "env_7f3a9c"
         connection.serverScopes = ["client"]
-        let client = CompanionClient(connection: connection, token: "omb_sess_Zk3v", session: session)
+        let client = CompanionClient(connection: connection, token: "jlf_sess_Zk3v", session: session)
         do {
             for try await _ in try client.events(since: "abc12345:7", streamingSession: session) {}
             XCTFail("a revoked session must surface as unauthorized, not as an empty stream")
@@ -268,10 +268,10 @@ final class ServerPairingTests: XCTestCase {
             XCTAssertTrue(error.isUnauthorized)
         }
         let request = try XCTUnwrap(ServerRequestStub.captured().first)
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer omb_sess_Zk3v")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer jlf_sess_Zk3v")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "text/event-stream")
         let components = try XCTUnwrap(URLComponents(url: XCTUnwrap(request.url), resolvingAgainstBaseURL: false))
-        XCTAssertEqual(components.host, "c-7f3a9c.openmausbot.com")
+        XCTAssertEqual(components.host, "c-7f3a9c.jlfbot.example.com")
         XCTAssertEqual(components.path, "/api/events")
         XCTAssertEqual(components.queryItems?.first { $0.name == "since" }?.value, "abc12345:7")
         XCTAssertEqual(components.queryItems?.first { $0.name == "screens" }?.value, "off")

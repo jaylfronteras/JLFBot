@@ -84,7 +84,7 @@ export function codexPredatesAstra(version: string): boolean {
 
 /** Ask the configured executable to update itself. This matters when the user
  * selected a non-PATH Codex: installing a second global copy would leave
- * OpenMausBot pointing at the old binary. */
+ * JLFBot pointing at the old binary. */
 export function codexUpdateCommand(cli: string, platform: NodeJS.Platform = process.platform): string {
   if (cli === "codex") return "codex update";
   const trimmed = cli.trim();
@@ -150,12 +150,12 @@ export function managedCodexArgs(config: NonNullable<CodexConfig["managed"]>): s
   // Credential stays in the instance environment, never argv or config.toml.
   // https://learn.chatgpt.com/docs/config-file/config-reference
   return [
-    "-c", 'model_provider="openmaus_company"',
-    "-c", 'model_providers.openmaus_company.name="Company"',
-    "-c", `model_providers.openmaus_company.base_url=${JSON.stringify(config.url)}`,
-    "-c", 'model_providers.openmaus_company.env_key="OPENMAUSBOT_COMPANY_API_KEY"',
-    "-c", 'model_providers.openmaus_company.wire_api="responses"',
-    "-c", "model_providers.openmaus_company.requires_openai_auth=false",
+    "-c", 'model_provider="jlfbot_company"',
+    "-c", 'model_providers.jlfbot_company.name="Company"',
+    "-c", `model_providers.jlfbot_company.base_url=${JSON.stringify(config.url)}`,
+    "-c", 'model_providers.jlfbot_company.env_key="JLFBOT_COMPANY_API_KEY"',
+    "-c", 'model_providers.jlfbot_company.wire_api="responses"',
+    "-c", "model_providers.jlfbot_company.requires_openai_auth=false",
     "-c", 'cli_auth_credentials_store="ephemeral"',
     "-c", "shell_environment_policy.ignore_default_excludes=false",
   ];
@@ -163,7 +163,7 @@ export function managedCodexArgs(config: NonNullable<CodexConfig["managed"]>): s
 
 const QUESTION_TIMEOUT_NOTE = "No answer was given — use your best judgment.";
 const DENY_TIMEOUT_NOTE =
-  "OpenMausBot: nobody answered this permission request in time. Skip this action and finish what you can without it.";
+  "JLFBot: nobody answered this permission request in time. Skip this action and finish what you can without it.";
 
 const skippedSseServers = new Set<string>();
 const renamedMcpServers = new Set<string>();
@@ -512,7 +512,7 @@ function mountMcpServer(
     // remote servers are documented and exercised with; any other header
     // rides env_http_headers.
     appServerArgs.push("-c", `${prefix}.url=${JSON.stringify(server.url)}`);
-    const stem = `OMB_MCP_HEADER_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+    const stem = `JLFBOT_MCP_HEADER_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
     const variables: Record<string, string> = {};
     Object.entries(server.headers).forEach(([header, value], index) => {
       const bearer = header.toLowerCase() === "authorization" ? /^Bearer\s+(\S+)$/i.exec(value) : null;
@@ -630,8 +630,8 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         if (!config.managed.models.includes(turn.model)) {
           throw new Error("Company model access is unavailable: " + turn.model + " is not approved for your organization. Reconnect your organization; personal billing will not be used.");
         }
-        if (!input.environment.OPENMAUSBOT_COMPANY_API_KEY) {
-          throw new Error("Company model access is unavailable: OPENMAUSBOT_COMPANY_API_KEY is missing. Reconnect your organization; personal billing will not be used.");
+        if (!input.environment.JLFBOT_COMPANY_API_KEY) {
+          throw new Error("Company model access is unavailable: JLFBOT_COMPANY_API_KEY is missing. Reconnect your organization; personal billing will not be used.");
         }
         if (!input.environment.CODEX_HOME) {
           throw new Error("Company model access is unavailable: CODEX_HOME is missing. Reconnect your organization; personal billing will not be used.");
@@ -668,7 +668,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         const env = childEnv();
         const appServerArgs = ["app-server", ...(config.managed ? managedCodexArgs(config.managed) : codexLocalProviderArgs(env, turn.model))];
         if (turn.integrations?.composio) {
-          mountMcpServer(appServerArgs, env, "openmausbot_connectors", turn.integrations.composio);
+          mountMcpServer(appServerArgs, env, "jlfbot_connectors", turn.integrations.composio);
         }
         if (turn.integrations?.agents) {
           mountMcpServer(appServerArgs, env, "agents", turn.integrations.agents);
@@ -701,7 +701,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
         if (turn.integrations?.phone) {
           const bridge = turn.integrations.phone;
           Object.assign(env, bridge.env);
-          const prefix = "mcp_servers.openmausbot_phone";
+          const prefix = "mcp_servers.jlfbot_phone";
           appServerArgs.push(
             "-c", `${prefix}.command=${JSON.stringify(bridge.command)}`,
             "-c", `${prefix}.args=${JSON.stringify(bridge.args)}`,
@@ -838,7 +838,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       const settle = async (ok: boolean, stopReason: string | null) => {
         if (state.settled) return;
         state.settled = true;
-        for (const finish of Array.from(asks.values())) finish("deny", "OpenMausBot: the turn ended", "system");
+        for (const finish of Array.from(asks.values())) finish("deny", "JLFBot: the turn ended", "system");
         for (const p of rpcPending.values()) p.reject(new Error("turn settled"));
         rpcPending.clear();
         const complete = () => {
@@ -1357,7 +1357,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       // nothing streamed yet, and never for auth/shape errors or interrupts
       try {
         await request("initialize", {
-          clientInfo: { name: "openmausbot", version: "1" },
+          clientInfo: { name: "jlfbot", version: "1" },
           // Named permission profiles are an experimental app-server field in
           // Codex 0.151. Negotiate them explicitly; older servers ignore this
           // capability and remain on the legacy Custom fallback below.
@@ -1397,7 +1397,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
           approvalParams = namedApprovalParams(approvalMode);
         }
         // Codex's `never` means "do not ask to escalate", not "grant every
-        // requested permission". Only the user's explicit OpenMausBot Full
+        // requested permission". Only the user's explicit JLFBot Full
         // mode may synthesize approvals; Custom must preserve the sandbox
         // boundary from config.toml (for example never + read-only).
         autoAcceptPermissions = approvalMode === "full";
@@ -1450,7 +1450,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
           }
         }
         if (!codexThreadId) {
-          const selection = config.managed ? { model: turn.model, modelProvider: "openmaus_company" } : decodeCodexSelection(turn.model);
+          const selection = config.managed ? { model: turn.model, modelProvider: "jlfbot_company" } : decodeCodexSelection(turn.model);
           const startThread = () => request("thread/start", {
               developerInstructions,
               cwd: turn.cwd ?? homedir(),
@@ -1562,7 +1562,7 @@ export const CodexDriver: ProviderDriver<CodexConfig> = {
       );
     });
     if (!version) return { state: "unavailable", reason: `\`${config.cli}\` CLI not found` };
-    if (config.managed) return { state: "available", version, authenticated: Boolean(input.environment.OPENMAUSBOT_COMPANY_API_KEY && input.environment.CODEX_HOME), billing: "metered" };
+    if (config.managed) return { state: "available", version, authenticated: Boolean(input.environment.JLFBOT_COMPANY_API_KEY && input.environment.CODEX_HOME), billing: "metered" };
     const authenticated = await new Promise<boolean>((resolve) => {
       execCli(config.cli, ["login", "status"], { timeout: 8000, env }, (err, stdout, stderr) =>
         resolve(!err && /^logged in\b/im.test(`${stdout}\n${stderr ?? ""}`)),

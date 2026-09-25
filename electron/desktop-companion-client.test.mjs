@@ -19,7 +19,7 @@ import {
   withoutDesktopCompanionAccess,
 } from "./desktop-companion-client.mjs";
 
-const token = `omb_${"a".repeat(43)}`;
+const token = `jlf_${"a".repeat(43)}`;
 const deviceId = "123e4567-e89b-12d3-a456-426614174000";
 const access = {
   endpoint: "http://host.example-tailnet.ts.net:8810",
@@ -41,11 +41,11 @@ afterEach(async () => {
 describe("desktop companion endpoint", () => {
   it("preserves the local-origin boundary while marking companion client mode", () => {
     expect(desktopCompanionRendererArguments("http://127.0.0.1:8799", null)).toEqual([
-      "--omb-local-origin=http://127.0.0.1:8799",
+      "--jlfbot-local-origin=http://127.0.0.1:8799",
     ]);
     expect(desktopCompanionRendererArguments("http://127.0.0.1:8798", access)).toEqual([
-      "--omb-local-origin=http://127.0.0.1:8798",
-      "--openmausbot-remote-client",
+      "--jlfbot-local-origin=http://127.0.0.1:8798",
+      "--jlfbot-remote-client",
     ]);
   });
 
@@ -56,30 +56,30 @@ describe("desktop companion endpoint", () => {
     expect(normalizeTailscaleCompanionEndpoint("http://HOST.example-tailnet.ts.net:9910/")).toBe(
       "http://host.example-tailnet.ts.net:9910",
     );
-    expect(normalizeDesktopCompanionEndpoint("https://c-opaque.openmausbot.com")).toBe(
-      "https://c-opaque.openmausbot.com",
+    expect(normalizeDesktopCompanionEndpoint("https://c-opaque.jlfbot.example.com")).toBe(
+      "https://c-opaque.jlfbot.example.com",
     );
-    expect(normalizeDesktopCompanionEndpoint("c-opaque.openmausbot.com")).toBe(
-      "https://c-opaque.openmausbot.com",
+    expect(normalizeDesktopCompanionEndpoint("c-opaque.jlfbot.example.com")).toBe(
+      "https://c-opaque.jlfbot.example.com",
     );
     for (const endpoint of [
       "https://unrelated.example.com",
-      "http://c-opaque.openmausbot.com",
+      "http://c-opaque.jlfbot.example.com",
       "http://10.0.0.4:8810",
       "http://host.local:8810",
       "https://10.0.0.4",
       "http://host.example-tailnet.ts.net/path",
-      "https://c-opaque.openmausbot.com/path",
+      "https://c-opaque.jlfbot.example.com/path",
       "http://user@host.example-tailnet.ts.net",
       "http://host.example-tailnet.ts.net.evil.test",
-      "https://c-opaque.openmausbot.com.evil.test",
+      "https://c-opaque.jlfbot.example.com.evil.test",
     ]) {
       expect(normalizeDesktopCompanionEndpoint(endpoint), endpoint).toBe("");
     }
   });
 
   it("validates, adds, and removes the encrypted credential document field", () => {
-    const hostedAccess = { ...access, endpoint: "https://c-opaque.openmausbot.com" };
+    const hostedAccess = { ...access, endpoint: "https://c-opaque.jlfbot.example.com" };
     expect(desktopCompanionAccess({ [DESKTOP_COMPANION_FIELD]: hostedAccess })).toEqual(
       hostedAccess,
     );
@@ -132,15 +132,15 @@ describe("desktop companion pairing", () => {
       }),
     );
     const paired = await pairDesktopCompanion({
-      endpoint: "https://c-opaque.openmausbot.com",
+      endpoint: "https://c-opaque.jlfbot.example.com",
       code: "654321",
       deviceName: "Desktop client",
       requestId: "request-https-01",
       fetchImpl,
     });
-    expect(paired).toEqual({ ...access, endpoint: "https://c-opaque.openmausbot.com" });
+    expect(paired).toEqual({ ...access, endpoint: "https://c-opaque.jlfbot.example.com" });
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://c-opaque.openmausbot.com/api/pair",
+      "https://c-opaque.jlfbot.example.com/api/pair",
       expect.objectContaining({ method: "POST" }),
     );
   });
@@ -171,7 +171,7 @@ describe("desktop companion loopback relay", () => {
   });
 
   it("serves the UI only on loopback and never includes the bearer in the page", async () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "omb-desktop-client-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "jlfbot-desktop-client-"));
     tempDirs.push(directory);
     fs.writeFileSync(path.join(directory, "index.html"), "<h1>Remote client</h1>");
     const relay = await startDesktopCompanionRelay({ access, staticDir: directory, ports: [0] });

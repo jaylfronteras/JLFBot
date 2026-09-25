@@ -110,7 +110,7 @@ describe("Settings → Appearance", () => {
     const html = render();
     expect(html).toContain('<option value="backups" selected="">Backups</option>');
     expect(html).toContain("Export full backup");
-    expect(html).toContain('type="file" accept=".ombbackup"');
+    expect(html).toContain('type="file" accept=".jlfbotbackup"');
     expect(html).toContain("Older team backups and shareable templates");
   });
 
@@ -131,7 +131,7 @@ describe("Settings → Appearance", () => {
     expect(local).toContain("Workspace address or pairing link");
     expect(local).toContain("Name (optional)");
     expect(local).toContain("Your workspaces");
-    expect(local).toContain("npx openmausbot pair --label");
+    expect(local).toContain("npx jlfbot pair --label");
     fixture.section = "general";
     vi.stubGlobal("window", { ogb: { workspaces: {} } });
     expect(render()).not.toContain('<option value="desktopWorkspaces"');

@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { launchVerificationServer, runControlOmb } from "../scripts/control-omb.ts";
+import { launchVerificationServer, runControlOmb } from "../scripts/control-jlfbot.ts";
 
 // The fixture can only write one fixed file, provided by the test inside the
 // launcher's disposable home. Provider-supplied arguments cannot select a path.

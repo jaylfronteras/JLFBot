@@ -65,7 +65,7 @@ class BrowserClient {
     this.child.on("close", () => { void this.stop(new TransportError("Browser connection closed.")); });
     this.ready = this.rpc("initialize", {
       protocolVersion: "2024-11-05", capabilities: {},
-      clientInfo: { name: "openmausbot-browser", version: "1" },
+      clientInfo: { name: "jlfbot-browser", version: "1" },
     }, Math.max(this.requestTimeoutMs, HANDSHAKE_TIMEOUT_MS)).then((result) => {
       if (!result || typeof result !== "object" || !("protocolVersion" in result)) {
         throw new TransportError("Browser engine returned an invalid handshake.");
@@ -209,7 +209,7 @@ export class BrowserRuntime {
   private options: { requestTimeoutMs: number; takeoverTimeoutMs: number; idleMs: number; maxPending: number; resultBudget: number };
 
   constructor(options: Partial<BrowserRuntime["options"]> = {}) {
-    const budget = Number(process.env.OMB_BROWSER_RESULT_BUDGET);
+    const budget = Number(process.env.JLFBOT_BROWSER_RESULT_BUDGET);
     this.options = { requestTimeoutMs: 120_000, takeoverTimeoutMs: 15_000, idleMs: 60_000, maxPending: 16, resultBudget: Number.isFinite(budget) && budget > 0 ? budget : DEFAULT_BROWSER_RESULT_BUDGET, ...options };
   }
 
@@ -275,7 +275,7 @@ export class BrowserRuntime {
       if (method === "tools/call" && this.gate(session).owner !== null) throw new Error(BROWSER_CONTROL_REFUSAL);
       try {
         // The model sees slimmed schemas and text-only, bounded results; the
-        // launch/session parameters OMB owns never reach the engine from a call.
+        // launch/session parameters JLFBOT owns never reach the engine from a call.
         const request = method === "tools/call" ? stripHarnessOwnedArguments(params) : params;
         const result = await entry.client.rpc(method, request);
         beforeDispatch?.(); // A turn revoked while the tool ran receives no result.

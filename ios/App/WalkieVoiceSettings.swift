@@ -15,7 +15,7 @@ enum WalkieVoicePrefs {
 }
 
 enum WalkieVoiceKey {
-    private static let service = "com.openmausbot.walkie.elevenlabs"
+    private static let service = "com.jlfbot.walkie.elevenlabs"
     private static let account = "api-key"
 
     private static var identity: [String: Any] {

@@ -22,13 +22,13 @@ folders and capacity. They do not drive the native iOS UI.
 ## Native UI
 
 Generate the Xcode project with `cd ios && xcodegen generate`. Create a fresh
-iPhone or iPad simulator, then run the `OpenMausCompanion` scheme's UI tests
+iPhone or iPad simulator, then run the `JLFBotCompanion` scheme's UI tests
 against that explicit simulator ID. For example, from `ios/`:
 
 ```sh
-xcodebuild -project OpenMausCompanion.xcodeproj -scheme OpenMausCompanion \
+xcodebuild -project JLFBotCompanion.xcodeproj -scheme JLFBotCompanion \
   -configuration Debug -destination 'platform=iOS Simulator,id=SIMULATOR_ID' \
-  -derivedDataPath /tmp/omb-ios-threads-build CODE_SIGNING_ALLOWED=NO test
+  -derivedDataPath /tmp/jlfbot-ios-threads-build CODE_SIGNING_ALLOWED=NO test
 ```
 
 `ThreadNavigationUITests` launches with `-store-preview -threads-preview`.
@@ -84,8 +84,8 @@ introduced by the thread UI.
 - All five native UI cases passed on iPhone 17 Pro and iPad Pro 13-inch (M5),
   using disposable iOS 26.5 simulators. Search also preserves the previously
   expanded bot when it is cancelled.
-- Retained results: `/tmp/omb-ios-threads-iphone-acceptance.xcresult` and
-  `/tmp/omb-ios-threads-ipad-clean.xcresult`, including screenshots.
+- Retained results: `/tmp/jlfbot-ios-threads-iphone-acceptance.xcresult` and
+  `/tmp/jlfbot-ios-threads-ipad-clean.xcresult`, including screenshots.
 - No physical-device, live pairing or provider verification was performed.
 
 ## Last opened thread regression — 2026-09-20 UTC (2026-09-21 IST)

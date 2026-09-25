@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import { resolveAgentBrowserBinary } from "../../server/browser-engine.ts";
 import { waitForExit } from "../../server/testing/cleanup.ts";
-import { runControlOmb } from "../control-omb.ts";
-import { UI_TOOLS_DIR } from "./control-omb-ui.ts";
+import { runControlOmb } from "../control-jlfbot.ts";
+import { UI_TOOLS_DIR } from "./control-jlfbot-ui.ts";
 import { fixtureApi } from "./preview-fixture.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const binary = resolveAgentBrowserBinary({ dataDir: UI_TOOLS_DIR, env: process.env });
-const enabled = process.env.OMB_UI_E2E === "1" || Boolean(binary);
-if (!enabled) console.info("skipping team canvas UI e2e: set OMB_UI_E2E=1 to install the pinned browser");
+const enabled = process.env.JLFBOT_UI_E2E === "1" || Boolean(binary);
+if (!enabled) console.info("skipping team canvas UI e2e: set JLFBOT_UI_E2E=1 to install the pinned browser");
 
 type BotRecord = {
   id: string; name: string; title?: string; section?: string; threadId: string;
@@ -26,7 +26,7 @@ type BotRecord = {
   const receipts: Record<string, unknown> = { pointerInput: "synthetic DOM events; native pointer capture is not proven" };
   try {
     let stdout = "", stderr = "";
-    child = spawn(process.execPath, ["--experimental-strip-types", join(ROOT, "scripts/control-omb.ts"), "ui", "launch"], {
+    child = spawn(process.execPath, ["--experimental-strip-types", join(ROOT, "scripts/control-jlfbot.ts"), "ui", "launch"], {
       cwd: ROOT, env: process.env, stdio: ["ignore", "pipe", "pipe"],
     });
     child.stdout!.on("data", (chunk: Buffer) => { stdout += String(chunk); });
@@ -329,7 +329,7 @@ type BotRecord = {
       });
     })()`)).toBe(true);
 
-    const layout = await evaluate("Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith('omb-team-canvas:')))");
+    const layout = await evaluate("Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith('jlfbot-team-canvas:')))");
     expect(Object.keys(layout)).toHaveLength(2);
     expect(Object.keys(layout).filter(key => key.endsWith(":bot-order"))).toHaveLength(1);
     receipts.layout = layout;
@@ -338,7 +338,7 @@ type BotRecord = {
     await openMap();
     await expect.poll(() => teamPosition("Delivery"), { timeout: 10_000 }).toEqual(arranged);
     await expect.poll(() => cardOrder("Delivery"), { timeout: 10_000 }).toEqual(reordered);
-    expect(await evaluate("Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith('omb-team-canvas:')))"))
+    expect(await evaluate("Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith('jlfbot-team-canvas:')))"))
       .toEqual(layout);
     expect((await savedBot(ben.id)).section).toBe("Delivery");
     expect(await messages(ben.id)).toEqual(transcript);

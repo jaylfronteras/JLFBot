@@ -1,4 +1,4 @@
-# OpenMausBot harness server — hosted/self-hosted tenant image.
+# JLFBot harness server — hosted/self-hosted tenant image.
 #
 # Two stages: build the renderer + the self-contained server bundle, then ship
 # only those artifacts on a slim Node runtime. The server keeps binding
@@ -6,11 +6,11 @@
 # model); deploy/docker-compose.yml puts Caddy in the same network namespace
 # to terminate TLS and authentication at the edge.
 #
-#   docker build -t openmausbot .
-#   docker build --build-arg ENGINES="@anthropic-ai/claude-code @openai/codex" -t openmausbot .
+#   docker build -t jlfbot .
+#   docker build --build-arg ENGINES="@anthropic-ai/claude-code @openai/codex" -t jlfbot .
 #
 # HOME is the /data volume, so engine CLI logins (~/.claude, ~/.codex, ...) and
-# OpenMausBot's own state (~/.openmausbot) persist across container restarts.
+# JLFBot's own state (~/.jlfbot) persist across container restarts.
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /src
@@ -45,10 +45,10 @@ RUN apt-get update \
     libatk-bridge2.0-0 libdrm2 libxkbcommon0 libatspi2.0-0 libcups2 \
     libxshmfence1 libgbm1 fonts-noto-color-emoji fonts-noto-cjk fonts-freefont-ttf \
   && rm -rf /var/lib/apt/lists/* \
-  && useradd --create-home --home-dir /data --shell /bin/bash maus
+  && useradd --create-home --home-dir /data --shell /bin/bash jlf
 WORKDIR /app
-COPY --from=build --chown=maus:maus /src/dist-server ./dist-server
-COPY --from=build --chown=maus:maus /src/dist ./dist
+COPY --from=build --chown=jlf:jlf /src/dist-server ./dist-server
+COPY --from=build --chown=jlf:jlf /src/dist ./dist
 # Optional engine CLIs baked into the image (space-separated npm packages).
 ARG ENGINES=""
 RUN if [ -n "$ENGINES" ]; then npm install -g $ENGINES; fi
@@ -57,20 +57,20 @@ RUN if [ -n "$ENGINES" ]; then npm install -g $ENGINES; fi
 # Pin here and in server/browser-engine-release.ts together.
 ARG AGENT_BROWSER_VERSION=0.37.0
 RUN npm install -g agent-browser@${AGENT_BROWSER_VERSION} \
-  && HOME=/opt/openmausbot-browser agent-browser install \
-  && ln -s /opt/openmausbot-browser/.agent-browser/browsers/chrome-*/chrome /opt/openmausbot-browser/chrome \
+  && HOME=/opt/jlfbot-browser agent-browser install \
+  && ln -s /opt/jlfbot-browser/.agent-browser/browsers/chrome-*/chrome /opt/jlfbot-browser/chrome \
   && agent-browser --version
 # Keep the baked-in browser outside both root's private home and /data,
 # which may be an existing mounted volume. Session state still lives in HOME.
 ENV HOME=/data \
-    AGENT_BROWSER_EXECUTABLE_PATH=/opt/openmausbot-browser/chrome \
-    OMB_DATA_DIR=/data/.openmausbot \
-    OMB_STATIC_DIR=/app/dist \
-    OMB_PORT=8799 \
-    OMB_WEBHOOK_PORT=8800 \
+    AGENT_BROWSER_EXECUTABLE_PATH=/opt/jlfbot-browser/chrome \
+    JLFBOT_DATA_DIR=/data/.jlfbot \
+    JLFBOT_STATIC_DIR=/app/dist \
+    JLFBOT_PORT=8799 \
+    JLFBOT_WEBHOOK_PORT=8800 \
     NODE_ENV=production
 VOLUME ["/data"]
-USER maus
+USER jlf
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -sf http://127.0.0.1:8799/api/health | grep -q openmausbot || exit 1
+  CMD curl -sf http://127.0.0.1:8799/api/health | grep -q jlfbot || exit 1
 CMD ["node", "dist-server/index.js"]

@@ -10,7 +10,7 @@
 
 import type { RoutineCronSchedule } from "./routine-schedule.ts";
 
-export type RoutineRequestRunOn = "maus" | "cloud";
+export type RoutineRequestRunOn = "jlf" | "cloud";
 
 export interface RoutineRequestIntervalWindow {
   start: string;

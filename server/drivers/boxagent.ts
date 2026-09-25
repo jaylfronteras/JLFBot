@@ -24,7 +24,7 @@ import { appendNative } from "./native.ts";
 
 const DRIVER_KIND = "boxAgent";
 // overridable so tests and a dev backend can be pointed at instead of the live provider
-const BOX_API = process.env.OMB_BOX_API || "https://ascii.dev/api/box/v1";
+const BOX_API = process.env.JLFBOT_BOX_API || "https://ascii.dev/api/box/v1";
 
 const MODELS = {
   default: "claude-fable-5",
@@ -106,7 +106,7 @@ export const BoxAgentDriver: ProviderDriver<BoxAgentConfig> = {
       const { threadId } = turn;
       const computer = turn.integrations?.computer;
       const boxId = computer && (!computer.kind || computer.kind === "box") ? computer.boxId : undefined;
-      if (!token) throw new Error('box not configured — add {"box":{"token":"…"}} to ~/.openmausbot/config.json');
+      if (!token) throw new Error('box not configured — add {"box":{"token":"…"}} to ~/.jlfbot/config.json');
       if (!boxId) {
         throw new Error("this bot has no computer yet — open the Computer panel and provision one");
       }
@@ -269,7 +269,7 @@ export const BoxAgentDriver: ProviderDriver<BoxAgentConfig> = {
 
     const snapshot = async (): Promise<ProviderSnapshot> => {
       if (!token) {
-        return { state: "unavailable", reason: 'no Box token — add {"box":{"token":"…"}} to ~/.openmausbot/config.json' };
+        return { state: "unavailable", reason: 'no Box token — add {"box":{"token":"…"}} to ~/.jlfbot/config.json' };
       }
       try {
         await api("/me");

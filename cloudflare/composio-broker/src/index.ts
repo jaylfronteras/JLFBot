@@ -261,7 +261,7 @@ async function register(request: Request, env: Env) {
   const now = Date.now();
   await env.DB.prepare(
     "INSERT INTO installations (id, token_hash, composio_user_id, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)",
-  ).bind(installationId, await sha256(token), `omb_${installationId.replaceAll("-", "")}`, now, now).run();
+  ).bind(installationId, await sha256(token), `jlf_${installationId.replaceAll("-", "")}`, now, now).run();
   console.log(JSON.stringify({ message: "installation registered", installationId }));
   return json({ installationId, token }, 201);
 }
@@ -577,7 +577,7 @@ async function requestAlias(request: Request) {
 
 async function route(request: Request, env: Env, ctx: ExecutionContext) {
   const url = new URL(request.url);
-  if (request.method === "GET" && url.pathname === "/health") return json({ service: "openmausbot-composio", ready: Boolean(env.COMPOSIO_API_KEY) });
+  if (request.method === "GET" && url.pathname === "/health") return json({ service: "jlfbot-composio", ready: Boolean(env.COMPOSIO_API_KEY) });
   if (request.method === "POST" && url.pathname === "/v1/installations") return register(request, env);
   if (!url.pathname.startsWith("/v1/")) return json({ error: "not found" }, 404);
   const installation = await authenticate(request, env);

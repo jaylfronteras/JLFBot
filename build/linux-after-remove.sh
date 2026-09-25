@@ -8,11 +8,11 @@ case "${1:-}" in
   *) exit 0 ;;
 esac
 
-if [ -n "${OPENMAUSBOT_POSTINSTALL_TEST_ROOT:-}" ]; then
-  TEST_ROOT="$(realpath -e -- "$OPENMAUSBOT_POSTINSTALL_TEST_ROOT")"
+if [ -n "${JLFBOT_POSTINSTALL_TEST_ROOT:-}" ]; then
+  TEST_ROOT="$(realpath -e -- "$JLFBOT_POSTINSTALL_TEST_ROOT")"
   case "$TEST_ROOT" in
     /tmp/*) ;;
-    *) echo "OpenMausBot test install root must stay under /tmp" >&2; exit 1 ;;
+    *) echo "JLFBot test install root must stay under /tmp" >&2; exit 1 ;;
   esac
   APPARMOR_DIR=$TEST_ROOT/test-system/apparmor.d
   APPARMOR_PARSER=$TEST_ROOT/test-system/apparmor_parser
@@ -37,28 +37,28 @@ if [ "$TEST_MODE" -eq 0 ]; then
   fi
 fi
 
-profile=$APPARMOR_DIR/openmausbot-browser
+profile=$APPARMOR_DIR/jlfbot-browser
 if [ ! -e "$profile" ] && [ ! -L "$profile" ]; then exit 0; fi
 if [ -L "$APPARMOR_DIR" ] || [ -L "$profile" ] || [ ! -f "$profile" ]; then
-  echo "OpenMausBot AppArmor profile is unsafe; refusing to remove it: $profile" >&2
+  echo "JLFBot AppArmor profile is unsafe; refusing to remove it: $profile" >&2
   exit 1
 fi
 if [ "$TEST_MODE" -eq 0 ] && [ -x /usr/bin/ischroot ] && /usr/bin/ischroot; then
   : # Removing from an image must not change the host's loaded profiles.
 elif [ -x "$APPARMOR_STATUS" ] && ! "$APPARMOR_STATUS" --enabled >/dev/null 2>&1; then
   : # No live policy exists when AppArmor is disabled; remove the staged file.
-elif [ -r "$APPARMOR_PROFILES" ] && ! grep -q '^openmausbot-browser ' "$APPARMOR_PROFILES"; then
+elif [ -r "$APPARMOR_PROFILES" ] && ! grep -q '^jlfbot-browser ' "$APPARMOR_PROFILES"; then
   : # Already unloaded; purge must also work after an earlier removal.
 elif [ -x "$APPARMOR_PARSER" ]; then
   # A profile may already be unloaded (for example during purge after remove).
   # Keep the policy file if unloading genuinely fails so an administrator can
   # inspect/retry the exact rule instead of leaving an invisible kernel rule.
   if ! "$APPARMOR_PARSER" -R "$profile"; then
-    echo "OpenMausBot could not unload its browser AppArmor profile: $profile" >&2
+    echo "JLFBot could not unload its browser AppArmor profile: $profile" >&2
     exit 1
   fi
 elif [ -r "$APPARMOR_PROFILES" ]; then
-  echo "OpenMausBot needs apparmor_parser to unload its browser profile: $profile" >&2
+  echo "JLFBot needs apparmor_parser to unload its browser profile: $profile" >&2
   exit 1
 fi
 rm -- "$profile"

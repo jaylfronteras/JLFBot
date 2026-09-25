@@ -15,7 +15,7 @@ const SERVER_DIR = dirname(fileURLToPath(import.meta.url));
 const setup = vi.hoisted(() => ({ runSetup: vi.fn(), isSetupComplete: vi.fn(), readCliStartup: vi.fn(), saveCliStartup: vi.fn() }));
 vi.mock("./cli-setup.ts", () => setup);
 
-describe("openmausbot command line", () => {
+describe("jlfbot command line", () => {
   it("parses commands and flags, and explains mistakes", () => {
     const serve = parseArgs(["serve", "--port", "9001", "--data-dir", "/tmp/x", "--label", "cab mini", "--tailscale", "--no-pair"], {});
     // --data-dir is resolved against the platform: C:\tmp\x on Windows.
@@ -27,13 +27,13 @@ describe("openmausbot command line", () => {
     });
     expect(parseArgs(["fleet", "users", "acme", "add", "bob@acme.test", "--chat-only"], {})).toMatchObject({ command: "fleet", fleetAction: "users", slug: "acme", fleetUserAction: "add", email: "bob@acme.test", chatOnly: true });
     expect(parseArgs(["fleet", "delete", "acme", "--yes", "--keep-data"], {})).toMatchObject({ fleetAction: "delete", slug: "acme", yes: true, keepData: true });
-    expect(parseArgs(["fleet", "init", "--domain", "AgentAda.cc", "--operator", "maus"], {})).toMatchObject({ fleetAction: "init", domain: "agentada.cc", operator: "maus" });
-    expect(parseArgs(["fleet", "agent", "--socket", "/run/x.sock", "--group", "maus"], {})).toMatchObject({ fleetAction: "agent", socket: "/run/x.sock", group: "maus" });
+    expect(parseArgs(["fleet", "init", "--domain", "AgentAda.cc", "--operator", "jlf"], {})).toMatchObject({ fleetAction: "init", domain: "agentada.cc", operator: "jlf" });
+    expect(parseArgs(["fleet", "agent", "--socket", "/run/x.sock", "--group", "jlf"], {})).toMatchObject({ fleetAction: "agent", socket: "/run/x.sock", group: "jlf" });
     expect(parseArgs(["fleet"], {})).toMatchObject({ error: expect.stringContaining("fleet needs one of") });
     expect(parseArgs(["fleet", "create"], {})).toMatchObject({ error: "fleet create needs a workspace name" });
     expect(parseArgs(["fleet", "users", "acme"], {})).toMatchObject({ error: expect.stringContaining("add|remove") });
     expect(parseArgs(["fleet", "create", "acme", "--cap", "-5"], {})).toMatchObject({ error: expect.stringContaining("--cap") });
-    expect(parseArgs([], { OMB_PORT: "8123" })).toMatchObject({ command: "start", port: 8123 });
+    expect(parseArgs([], { JLFBOT_PORT: "8123" })).toMatchObject({ command: "start", port: 8123 });
     expect(parseArgs(["--port", "8125", "--no-open", "--local"], {})).toMatchObject({ command: "start", port: 8125, open: false, local: true });
     expect(parseArgs(["--help"], {})).toMatchObject({ command: "help" });
     expect(parseArgs(["-h"], {})).toMatchObject({ command: "help" });
@@ -56,12 +56,12 @@ describe("openmausbot command line", () => {
     expect(parseArgs(["access", "list"], {})).toMatchObject({ command: "access", accessAction: "list" });
     expect(parseArgs(["access"], {})).toEqual({ error: "access needs one of: list, add EMAIL [--chat-only], remove EMAIL" });
     expect(parseArgs(["access", "add"], {})).toEqual({ error: "add needs a value" });
-    expect(parseArgs(["service", "install", "--domain", "maus.example.com", "--port", "8799"], {})).toMatchObject({ command: "service", serviceAction: "install", domain: "maus.example.com", port: 8799 });
+    expect(parseArgs(["service", "install", "--domain", "jlf.example.com", "--port", "8799"], {})).toMatchObject({ command: "service", serviceAction: "install", domain: "jlf.example.com", port: 8799 });
     expect(parseArgs(["service", "uninstall"], {})).toMatchObject({ command: "service", serviceAction: "uninstall" });
     expect(parseArgs(["service"], {})).toEqual({ error: expect.stringContaining("service needs one of") });
-    expect(parseArgs(["serve", "--domain", "Maus.Example.com"], {})).toMatchObject({ command: "serve", domain: "maus.example.com" });
+    expect(parseArgs(["serve", "--domain", "Jlf.Example.com"], {})).toMatchObject({ command: "serve", domain: "jlf.example.com" });
     expect(parseArgs(["serve", "--domain", "localhost"], {})).toEqual({ error: expect.stringContaining("bare hostname") });
-    expect(parseArgs(["serve", "--domain", "maus.example.com", "--tunnel"], {})).toEqual({ error: expect.stringContaining("--domain already gives") });
+    expect(parseArgs(["serve", "--domain", "jlf.example.com", "--tunnel"], {})).toEqual({ error: expect.stringContaining("--domain already gives") });
   });
 
   it("takes the phone kind non-interactively, because a scripted pair never sees the chooser", () => {
@@ -77,15 +77,15 @@ describe("openmausbot command line", () => {
     expect(block).toContain("pairing code:  ABCD-EFGH-JKLM");
     expect(block).toContain("open or scan:  https://mini.example/pair#code=ABCD-EFGH-JKLM");
     expect(block).toMatch(/[▀▄█]/);
-    const noUrl = pairingBlock({ code: "ABCD-EFGH-JKLM", url: null, expiresAt: Date.now(), hint: "set OMB_PUBLIC_URL" });
+    const noUrl = pairingBlock({ code: "ABCD-EFGH-JKLM", url: null, expiresAt: Date.now(), hint: "set JLFBOT_PUBLIC_URL" });
     expect(noUrl).toContain("/pair on the address you use");
-    expect(noUrl).toContain("set OMB_PUBLIC_URL");
+    expect(noUrl).toContain("set JLFBOT_PUBLIC_URL");
     expect(qrToString("https://example.com").length).toBeGreaterThan(200);
   });
 
   describe("the two links one pairing window has", () => {
     const url = "https://mini.example/pair#code=ABCD-EFGH-JKLM";
-    const invite = `openmausbot://pair?address=https%3A%2F%2Fmini.example&token=omb_pair_${"a".repeat(43)}&name=mini`;
+    const invite = `jlfbot://pair?address=https%3A%2F%2Fmini.example&token=jlf_pair_${"a".repeat(43)}&name=mini`;
     const block = (over: Record<string, unknown> = {}) =>
       pairingBlock({ code: "ABCD-EFGH-JKLM", url, inviteUrl: invite, expiresAt: Date.now() + 60_000, ...over });
 
@@ -93,7 +93,7 @@ describe("openmausbot command line", () => {
       const out = block({ phone: "android" });
       expect(out).toContain(qrToString(invite));
       expect(out).not.toContain(qrToString(url));
-      expect(out).toContain("Scan that in the OpenMausBot app");
+      expect(out).toContain("Scan that in the JLFBot app");
       // The web link is still offered, but not as the thing to scan.
       expect(out).toContain(`web browser:   ${url}`);
       expect(out).not.toContain("open or scan:");
@@ -113,9 +113,9 @@ describe("openmausbot command line", () => {
       const out = block({ phone: "android", inviteUrl: null });
       expect(out).toContain(qrToString(url));
       expect(out).toContain("The Android app needs the phone-app link");
-      expect(out).toContain("OMB_PUBLIC_URL");
+      expect(out).toContain("JLFBOT_PUBLIC_URL");
       // It must not claim the QR is scannable in the app when it is not.
-      expect(out).not.toContain("Scan that in the OpenMausBot app");
+      expect(out).not.toContain("Scan that in the JLFBot app");
     });
   });
 
@@ -140,11 +140,11 @@ describe("openmausbot command line", () => {
   });
 
   it("serve: starts the server, prints the pairing link, and stops on SIGTERM", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-cli-serve-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-cli-serve-"));
     const port = 21000 + Math.floor(Math.random() * 9000);
-    const child = spawn(process.execPath, ["--experimental-strip-types", join(SERVER_DIR, "openmausbot.ts"), "serve", "--port", String(port), "--data-dir", join(home, "data"), "--label", "cli test", "--public-url", "https://mini.example"], {
+    const child = spawn(process.execPath, ["--experimental-strip-types", join(SERVER_DIR, "jlfbot.ts"), "serve", "--port", String(port), "--data-dir", join(home, "data"), "--label", "cli test", "--public-url", "https://mini.example"], {
       cwd: join(SERVER_DIR, ".."),
-      env: { PATH: process.env.PATH ?? "", HOME: home, USERPROFILE: home, OMB_WEBHOOK_PORT: String(port + 1), OMB_BROWSER_CONNECTION: join(home, "browser-connection.json") },
+      env: { PATH: process.env.PATH ?? "", HOME: home, USERPROFILE: home, JLFBOT_WEBHOOK_PORT: String(port + 1), JLFBOT_BROWSER_CONNECTION: join(home, "browser-connection.json") },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -153,11 +153,11 @@ describe("openmausbot command line", () => {
     try {
       const deadline = Date.now() + 60_000;
       while (!out.includes("open or scan:") && Date.now() < deadline && child.exitCode === null) await new Promise((r) => setTimeout(r, 200));
-      expect(out).toContain(`OpenMausBot is running on http://127.0.0.1:${port}, reachable at https://mini.example`);
+      expect(out).toContain(`JLFBot is running on http://127.0.0.1:${port}, reachable at https://mini.example`);
       expect(out).toMatch(/pairing code:  [A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/);
       expect(out).toContain("open or scan:  https://mini.example/pair#code=");
       expect(out).toMatch(/[▀▄█]/);
-      const descriptor: any = await (await fetch(`http://127.0.0.1:${port}/.well-known/openmausbot/environment`)).json();
+      const descriptor: any = await (await fetch(`http://127.0.0.1:${port}/.well-known/jlfbot/environment`)).json();
       expect(descriptor.label).toBe("cli test");
       const pairing: any = await (await fetch(`http://127.0.0.1:${port}/api/auth/pairing`)).json();
       expect(pairing.pairings.length).toBeGreaterThanOrEqual(1);
@@ -193,7 +193,7 @@ describe("terminal onboarding commands", () => {
   });
   const command = (name: "setup" | "start") => parseArgs([name, "--data-dir", join(process.env.HOME!, "onboarding"), "--port", "18451"], {}) as CliOptions;
   const io = () => ({ log: vi.fn(), error: vi.fn(), ask: vi.fn() });
-  const preserveEnv = () => vi.stubEnv("OMB_DATA_DIR", process.env.OMB_DATA_DIR);
+  const preserveEnv = () => vi.stubEnv("JLFBOT_DATA_DIR", process.env.JLFBOT_DATA_DIR);
   const phoneSetup = vi.fn<NonNullable<NonNullable<Parameters<typeof runOnboardingCommand>[3]>["phoneSetup"]>>();
   const running = vi.fn().mockResolvedValue(false);
   const open = vi.fn().mockResolvedValue(true);
@@ -211,14 +211,14 @@ describe("terminal onboarding commands", () => {
     const output = io();
     const serve = vi.fn();
     setup.runSetup.mockImplementation(async () => {
-      expect(process.env.OMB_DATA_DIR).toBe(options.dataDir);
+      expect(process.env.JLFBOT_DATA_DIR).toBe(options.dataDir);
       return true;
     });
     expect(await runOnboardingCommand(options, output, serve, flow)).toBe(0);
     expect(setup.runSetup).toHaveBeenCalledWith({ dataDir: options.dataDir, port: options.port });
     expect(setup.isSetupComplete).not.toHaveBeenCalled();
     expect(serve).not.toHaveBeenCalled();
-    expect(output.log).toHaveBeenCalledWith(expect.stringContaining("Start with: openmausbot"));
+    expect(output.log).toHaveBeenCalledWith(expect.stringContaining("Start with: jlfbot"));
     expect(phoneSetup).toHaveBeenCalledOnce();
     expect(setup.saveCliStartup).toHaveBeenCalledWith(options.dataDir, { access: "local" });
   });
@@ -366,16 +366,16 @@ describe("phone endpoint identity", () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ environmentId: "fixture" }))
       .mockResolvedValueOnce(Response.json({ environmentId: "fixture" }));
     vi.stubGlobal("fetch", fetcher);
-    expect(await verifyPhoneEndpoint(18451, "https://maus.example.com")).toBe(true);
+    expect(await verifyPhoneEndpoint(18451, "https://jlf.example.com")).toBe(true);
     expect(fetcher.mock.calls[1]![1]).toMatchObject({ redirect: "error" });
     expect(fetcher.mock.calls[1]![1]).not.toHaveProperty("headers");
   });
   it("refuses another server or unreachable origin", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ environmentId: "ours" }))
       .mockResolvedValueOnce(Response.json({ environmentId: "other" })));
-    expect(await verifyPhoneEndpoint(18451, "https://maus.example.com")).toBe(false);
+    expect(await verifyPhoneEndpoint(18451, "https://jlf.example.com")).toBe(false);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
-    expect(await verifyPhoneEndpoint(18451, "https://maus.example.com")).toBe(false);
+    expect(await verifyPhoneEndpoint(18451, "https://jlf.example.com")).toBe(false);
     expect(await verifyPhoneEndpoint(18451, "https://localhost")).toBe(false);
   });
 });
@@ -384,21 +384,21 @@ const exited = (child: ChildProcess) => (child.exitCode !== null ? Promise.resol
 
 describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
   const cli = (args: string[], env: NodeJS.ProcessEnv) =>
-    spawn(process.execPath, ["--experimental-strip-types", join(SERVER_DIR, "openmausbot.ts"), ...args], {
+    spawn(process.execPath, ["--experimental-strip-types", join(SERVER_DIR, "jlfbot.ts"), ...args], {
       cwd: join(SERVER_DIR, ".."),
       env: { PATH: process.env.PATH ?? "", ...env },
       stdio: ["ignore", "pipe", "pipe"],
     });
 
   it("refuses without an account and says what to do; no local-only fallback", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-cli-tunnel-none-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-cli-tunnel-none-"));
     const port = 21000 + Math.floor(Math.random() * 9000);
     const child = cli(["serve", "--tunnel", "--port", String(port), "--data-dir", join(home, "data")], { HOME: home, USERPROFILE: home });
     let err = "";
     child.stderr?.on("data", (chunk) => (err += String(chunk)));
     try {
       expect(await exited(child)).toBe(1);
-      expect(err).toContain("run `openmausbot login` first");
+      expect(err).toContain("run `jlfbot login` first");
       let dead = false;
       try {
         await fetch(`http://127.0.0.1:${port}/api/health`);
@@ -412,7 +412,7 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
   }, 30_000);
 
   it("a fleet credential in the environment serves --tunnel with no account file and no code", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-cli-fleet-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-cli-fleet-"));
     const dataDir = join(home, "data");
     mkdirSync(dataDir, { recursive: true });
     const stub = await startControlPlaneStub();
@@ -423,16 +423,16 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
     const fleetEnv = {
       HOME: home,
       USERPROFILE: home,
-      OMB_WEBHOOK_PORT: String(port + 1),
-      OMB_BROWSER_CONNECTION: join(home, "browser-connection.json"),
-      OMB_CONTROL_PLANE_URL: stub.url,
-      OMB_CLOUDFLARED_PATH: fake,
-      OMB_TUNNEL_ORIGIN_PORT: String(originPort),
+      JLFBOT_WEBHOOK_PORT: String(port + 1),
+      JLFBOT_BROWSER_CONNECTION: join(home, "browser-connection.json"),
+      JLFBOT_CONTROL_PLANE_URL: stub.url,
+      JLFBOT_CLOUDFLARED_PATH: fake,
+      JLFBOT_TUNNEL_ORIGIN_PORT: String(originPort),
     };
     // a credential the control plane does not know stops the start; nothing serves
     const rejected = cli(["serve", "--tunnel", "--no-pair", "--port", String(port), "--data-dir", dataDir], {
       ...fleetEnv,
-      OMB_INSTALLATION_CREDENTIAL: `omb_install_${"x".repeat(22)}.${"y".repeat(43)}`,
+      JLFBOT_INSTALLATION_CREDENTIAL: `jlf_install_${"x".repeat(22)}.${"y".repeat(43)}`,
     });
     let err = "";
     rejected.stderr?.on("data", (chunk) => (err += String(chunk)));
@@ -441,7 +441,7 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
 
     const child = cli(["serve", "--tunnel", "--no-pair", "--port", String(port), "--data-dir", dataDir], {
       ...fleetEnv,
-      OMB_INSTALLATION_CREDENTIAL: stub.seedInstallation("fleet box"),
+      JLFBOT_INSTALLATION_CREDENTIAL: stub.seedInstallation("fleet box"),
     });
     let out = "";
     child.stdout?.on("data", (chunk) => (out += String(chunk)));
@@ -449,15 +449,15 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
     const gateway = `http://127.0.0.1:${originPort}`;
     try {
       const deadline = Date.now() + 60_000;
-      while (!out.includes("OpenMausBot is running") && Date.now() < deadline && child.exitCode === null) await new Promise((r) => setTimeout(r, 200));
-      expect(out).toContain("using the installation credential from OMB_INSTALLATION_CREDENTIAL");
+      while (!out.includes("JLFBot is running") && Date.now() < deadline && child.exitCode === null) await new Promise((r) => setTimeout(r, 200));
+      expect(out).toContain("using the installation credential from JLFBOT_INSTALLATION_CREDENTIAL");
       expect(out).toContain(`reachable at ${stub.endpointUrl}`);
       expect(existsSync(join(dataDir, "tunnel-account.json"))).toBe(false);
       let status = 0;
       const gatewayDeadline = Date.now() + 20_000;
       while (Date.now() < gatewayDeadline && status !== 200) {
         try {
-          status = (await fetch(`${gateway}/.well-known/openmausbot/environment`)).status;
+          status = (await fetch(`${gateway}/.well-known/jlfbot/environment`)).status;
         } catch {
           status = 0;
         }
@@ -473,14 +473,14 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
   }, 120_000);
 
   it("serves at the account's public address through the gateway, where every request is remote", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-cli-tunnel-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-cli-tunnel-"));
     const dataDir = join(home, "data");
     mkdirSync(dataDir, { recursive: true });
     const stub = await startControlPlaneStub();
     const fake = join(home, "cloudflared");
     writeFileSync(fake, "#!/bin/sh\nexec sleep 300\n", { mode: 0o755 });
     // sign this data dir in, in-process, against the stub
-    vi.stubEnv("OMB_CONTROL_PLANE_URL", stub.url);
+    vi.stubEnv("JLFBOT_CONTROL_PLANE_URL", stub.url);
     const quiet = { log: () => undefined, error: () => undefined, ask: async () => stub.otp };
     expect(await runLogin({ command: "login", port: 1, dataDir, tailscale: false, tunnel: false, client: false, pair: true, json: false, email: "cli@example.test" }, quiet)).toBe(0);
     vi.unstubAllEnvs();
@@ -489,11 +489,11 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
     const child = cli(["serve", "--tunnel", "--port", String(port), "--data-dir", dataDir, "--label", "tunnel test"], {
       HOME: home,
       USERPROFILE: home,
-      OMB_WEBHOOK_PORT: String(port + 1),
-      OMB_BROWSER_CONNECTION: join(home, "browser-connection.json"),
-      OMB_CONTROL_PLANE_URL: stub.url,
-      OMB_CLOUDFLARED_PATH: fake,
-      OMB_TUNNEL_ORIGIN_PORT: String(originPort),
+      JLFBOT_WEBHOOK_PORT: String(port + 1),
+      JLFBOT_BROWSER_CONNECTION: join(home, "browser-connection.json"),
+      JLFBOT_CONTROL_PLANE_URL: stub.url,
+      JLFBOT_CLOUDFLARED_PATH: fake,
+      JLFBOT_TUNNEL_ORIGIN_PORT: String(originPort),
     });
     let out = "";
     child.stdout?.on("data", (chunk) => (out += String(chunk)));
@@ -502,7 +502,7 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
     try {
       const deadline = Date.now() + 60_000;
       while (!out.includes("open or scan:") && Date.now() < deadline && child.exitCode === null) await new Promise((r) => setTimeout(r, 200));
-      expect(out).toContain(`OpenMausBot is running on http://127.0.0.1:${port}, reachable at ${stub.endpointUrl}`);
+      expect(out).toContain(`JLFBot is running on http://127.0.0.1:${port}, reachable at ${stub.endpointUrl}`);
       expect(out).toContain(`open or scan:  ${stub.endpointUrl}/pair#code=`);
       // a fresh connector token was fetched for this run
       expect(stub.calls).toContain("POST /v1/installations/self/endpoint");
@@ -512,7 +512,7 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
       const gatewayDeadline = Date.now() + 20_000;
       while (Date.now() < gatewayDeadline) {
         try {
-          descriptor = await fetch(`${gateway}/.well-known/openmausbot/environment`);
+          descriptor = await fetch(`${gateway}/.well-known/jlfbot/environment`);
           if (descriptor.status === 200) break;
         } catch {
           descriptor = null;
@@ -524,7 +524,7 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
       const stranger = await fetch(`${gateway}/api/bots`);
       expect(stranger.status).toBe(403);
       expect(((await stranger.json()) as { error: string }).error).toMatch(/through a proxy/);
-      expect(await (await fetch(`${gateway}/api/health`)).json()).toEqual({ app: "openmausbot" });
+      expect(await (await fetch(`${gateway}/api/health`)).json()).toEqual({ app: "jlfbot" });
       expect(typeof ((await (await fetch(`http://127.0.0.1:${port}/api/health`)).json()) as { pid: unknown }).pid).toBe("number");
       // the printed code pairs a device through the gateway, and its session is honoured there
       const match = /pairing code:  ([A-Z2-9-]+)/.exec(out);
@@ -556,9 +556,9 @@ describe.skipIf(process.platform === "win32")("serve --tunnel", () => {
   }, 120_000);
 });
 
-describe("openmausbot access", () => {
+describe("jlfbot access", () => {
   it("edits the sign-in allow-list in config.json without a running server", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-cli-access-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-cli-access-"));
     const dataDir = join(home, "data");
     const out: string[] = [];
     const err: string[] = [];
@@ -598,15 +598,15 @@ describe("openmausbot access", () => {
 
 describe.skipIf(process.platform === "win32")("serve --domain", () => {
   it("runs a managed Caddy for the domain and serves the pairing link there", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-cli-domain-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-cli-domain-"));
     const dataDir = join(home, "data");
     mkdirSync(dataDir, { recursive: true });
     const fake = join(home, "fake-caddy");
     writeFileSync(fake, `#!/bin/sh\necho "$@" > "${join(home, "caddy-args.txt")}"\necho $$ > "${join(home, "caddy.pid")}"\nexec sleep 300\n`, { mode: 0o755 });
     const port = 21000 + Math.floor(Math.random() * 9000);
-    const child = spawn(process.execPath, ["--experimental-strip-types", join(SERVER_DIR, "openmausbot.ts"), "serve", "--domain", "omb.example.test", "--port", String(port), "--data-dir", dataDir], {
+    const child = spawn(process.execPath, ["--experimental-strip-types", join(SERVER_DIR, "jlfbot.ts"), "serve", "--domain", "jlfbot.example.test", "--port", String(port), "--data-dir", dataDir], {
       cwd: join(SERVER_DIR, ".."),
-      env: { PATH: process.env.PATH ?? "", HOME: home, USERPROFILE: home, OMB_WEBHOOK_PORT: String(port + 1), OMB_BROWSER_CONNECTION: join(home, "browser-connection.json"), OMB_CADDY_PATH: fake },
+      env: { PATH: process.env.PATH ?? "", HOME: home, USERPROFILE: home, JLFBOT_WEBHOOK_PORT: String(port + 1), JLFBOT_BROWSER_CONNECTION: join(home, "browser-connection.json"), JLFBOT_CADDY_PATH: fake },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -615,13 +615,13 @@ describe.skipIf(process.platform === "win32")("serve --domain", () => {
     try {
       const deadline = Date.now() + 60_000;
       while (!out.includes("open or scan:") && Date.now() < deadline && child.exitCode === null) await new Promise((r) => setTimeout(r, 200));
-      expect(out).toContain(`OpenMausBot is running on http://127.0.0.1:${port}, reachable at https://omb.example.test`);
-      expect(out).toContain("https: Caddy serves https://omb.example.test");
-      expect(out).toContain("open or scan:  https://omb.example.test/pair#code=");
+      expect(out).toContain(`JLFBot is running on http://127.0.0.1:${port}, reachable at https://jlfbot.example.test`);
+      expect(out).toContain("https: Caddy serves https://jlfbot.example.test");
+      expect(out).toContain("open or scan:  https://jlfbot.example.test/pair#code=");
       const args = readFileSync(join(home, "caddy-args.txt"), "utf8").trim();
       expect(args).toMatch(/^run --config .*Caddyfile --adapter caddyfile$/);
       const caddyfile = readFileSync(join(dataDir, "caddy", "Caddyfile"), "utf8");
-      expect(caddyfile).toContain("omb.example.test {");
+      expect(caddyfile).toContain("jlfbot.example.test {");
       expect(caddyfile).toContain(`reverse_proxy 127.0.0.1:${port}`);
       expect(caddyfile).toContain(`reverse_proxy 127.0.0.1:${port + 1}`);
     } finally {

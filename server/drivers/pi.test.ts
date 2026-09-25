@@ -158,7 +158,7 @@ describe("PiDriver catalog (fake CLI)", () => {
   });
 
   it("probes the live catalog and flags every option custom", async () => {
-    const catalog = await fetchPiModels(FAKE_CLI, { PATH: process.env.PATH ?? "", HOME: join(tmpdir(), "omb-pi-no-settings") });
+    const catalog = await fetchPiModels(FAKE_CLI, { PATH: process.env.PATH ?? "", HOME: join(tmpdir(), "jlfbot-pi-no-settings") });
     expect(catalog.options).toEqual([
       { id: "ollama-cloud/glm-5.2", label: "glm-5.2", custom: true, provider: "ollama-cloud" },
       { id: "openai/gpt-4o", label: "gpt-4o", custom: true, provider: "openai" },
@@ -170,14 +170,14 @@ describe("PiDriver catalog (fake CLI)", () => {
   it("keeps an empty catalog when the probe reports no models", async () => {
     const catalog = await fetchPiModels(FAKE_CLI, {
       PATH: process.env.PATH ?? "",
-      HOME: join(tmpdir(), "omb-pi-empty"),
+      HOME: join(tmpdir(), "jlfbot-pi-empty"),
       FAKE_PI_MODE: "no-models",
     });
     expect(catalog.options).toEqual([]);
   });
 
   it("updates pi's catalog only on explicit refresh, then probes it again", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-pi-update-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-pi-update-"));
     const dump = join(home, "launches.jsonl");
     const instance = await PiDriver.create({
       instanceId: "pi-refresh",
@@ -209,7 +209,7 @@ describe("PiDriver catalog (fake CLI)", () => {
     })).toBe(false);
     const catalog = await fetchPiModels(FAKE_CLI, {
       PATH: process.env.PATH ?? "",
-      HOME: join(tmpdir(), "omb-pi-update-error"),
+      HOME: join(tmpdir(), "jlfbot-pi-update-error"),
       FAKE_PI_MODE: "update-error",
     });
     expect(catalog.options).toHaveLength(2);
@@ -279,7 +279,7 @@ describe("PiDriver turns (fake CLI)", () => {
   });
 
   it("sends images as native base64 prompt content without copying bytes into diagnostics", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-pi-image-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-pi-image-"));
     const dump = join(dir, "dump.jsonl");
     const imagePath = join(dir, "tiny.png");
     const bytes = Buffer.from("private-image-bytes");
@@ -355,7 +355,7 @@ describe("PiDriver turns (fake CLI)", () => {
   });
 
   it("pins reasoning effort via set_thinking_level after the model", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-pi-effort-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-pi-effort-"));
     const dump = join(dir, "dump.jsonl");
     await create(undefined, { FAKE_PI_DUMP: dump });
     const { turnId } = await instance.adapter.sendTurn({
@@ -375,7 +375,7 @@ describe("PiDriver turns (fake CLI)", () => {
   });
 
   it("maps the none effort to pi's off and sends nothing without effort", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-pi-effort-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-pi-effort-"));
     const dump = join(dir, "dump.jsonl");
     await create(undefined, { FAKE_PI_DUMP: dump });
     const none = await instance.adapter.sendTurn({ threadId: "t-none", text: "hi", effort: "none" });
@@ -394,7 +394,7 @@ describe("PiDriver turns (fake CLI)", () => {
   });
 
   it("scrubs provider and workspace credentials from every pi child env", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-pi-dump-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-pi-dump-"));
     const dump = join(dir, "dump.jsonl");
     // Plant a workspace credential on the harness process itself — the leak
     // path is `...process.env`, not just input.environment.
@@ -434,7 +434,7 @@ describe("PiDriver turns (fake CLI)", () => {
   });
 
   it("mounts integrations as stdio MCP servers and loads the pi-mcp-extension", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-pi-mcp-dump-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-pi-mcp-dump-"));
     const dump = join(dir, "dump.jsonl");
     await create(undefined, { FAKE_PI_DUMP: dump });
     const { turnId } = await instance.adapter.sendTurn({
@@ -593,7 +593,7 @@ describe("PiDriver turns (fake CLI)", () => {
   });
 
   it("writes models.json and set_model for a host::model inject pick", async () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-pi-turn-inject-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-pi-turn-inject-"));
     const dump = join(home, "dump.jsonl");
     await create(undefined, { HOME: home, FAKE_PI_DUMP: dump });
     const { turnId } = await instance.adapter.sendTurn({
@@ -668,7 +668,7 @@ describe("preferPiInjectRows", () => {
 
 describe("ensurePiInjectModel", () => {
   it("upserts a provider into ~/.pi/agent/models.json without dropping existing models", () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-pi-inject-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-pi-inject-"));
     mkdirSync(join(home, ".pi", "agent"), { recursive: true });
     writeFileSync(
       join(home, ".pi", "agent", "models.json"),
@@ -704,7 +704,7 @@ describe("ensurePiInjectModel", () => {
   });
 
   it("writes Unsloth's studio token, not the placeholder", () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-pi-unsloth-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-pi-unsloth-"));
     const split = ensurePiInjectModel("unsloth::Qwen3.8-27B", {
       HOME: home,
       UNSLOTH_STUDIO_AUTH_TOKEN: "unsloth-secret",
@@ -718,13 +718,13 @@ describe("ensurePiInjectModel", () => {
   });
 
   it("leaves official slugs and the models.json file untouched", () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-pi-cloud-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-pi-cloud-"));
     expect(ensurePiInjectModel("openai/gpt-4o", { HOME: home })).toEqual({ provider: "openai", modelId: "gpt-4o" });
     expect(() => readFileSync(join(home, ".pi", "agent", "models.json"))).toThrow();
   });
 
   it("does not destroy a malformed models.json", () => {
-    const home = mkdtempSync(join(tmpdir(), "omb-pi-badjson-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-pi-badjson-"));
     mkdirSync(join(home, ".pi", "agent"), { recursive: true });
     const path = join(home, ".pi", "agent", "models.json");
     writeFileSync(path, "not json");
@@ -746,7 +746,7 @@ describe("applyPiLocalCatalog", () => {
           { id: "omlx/MiniMax-M3-4bit", label: "MiniMax-M3-4bit", custom: true },
         ],
       },
-      { VITEST: "true", OPENMAUSBOT_PROBE_LOCAL_INJECT: "1" },
+      { VITEST: "true", JLFBOT_PROBE_LOCAL_INJECT: "1" },
       async (url) => {
         if (String(url).includes(":8080")) {
           return new Response(JSON.stringify({ data: [{ id: "MiniMax-M3-4bit" }] }), { status: 200 });

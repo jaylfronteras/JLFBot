@@ -10,7 +10,7 @@ MCP server you trust. A server is one of two things:
   line). Most servers speak **Streamable HTTP**; pick **SSE** only for an
   older server that documents the `/sse` endpoint.
 
-OpenMausBot saves a new server switched off. Use **Test** to start the command
+JLFBot saves a new server switched off. Use **Test** to start the command
 (or connect to the address), complete the MCP handshake, and see the tools it
 advertises. Then turn it on. It becomes available to compatible bots on their
 next task; no app restart is needed.
@@ -71,10 +71,10 @@ server is still this page or the bot project's `.mcp.json`.
 
 The switch drops the CLI flag `--strict-mcp-config` (Claude Code 1.0.60+)
 while keeping `--setting-sources project` (1.0.122+). The environment variable
-`OMB_CLAUDE_INHERIT_USER_CONFIG=1` on the OpenMausBot process remains the full
+`JLFBOT_CLAUDE_INHERIT_USER_CONFIG=1` on the JLFBot process remains the full
 escape hatch back to the old launch: it restores everything, for every Claude
 bot, until you remove it. The harness also picks the session's compaction
-window with `--autocompact` (2.1.122+). OpenMausBot reads `claude --version`
+window with `--autocompact` (2.1.122+). JLFBot reads `claude --version`
 whenever it lists engines (app load, the Engines page, after an update) and
 only passes each flag to a CLI that accepts it, so an older CLI keeps working
 — without the controls it predates — and the Engines page shows an update
@@ -98,14 +98,14 @@ Address entries are HTTPS only. The host is compared label by label, where
 and the path separately, where `*` matches anything.
 
 Limits: a personal **Codex** engine also loads MCP servers from your own
-`~/.codex/config.toml`, which OpenMausBot does not filter. An organisation that
+`~/.codex/config.toml`, which JLFBot does not filter. An organisation that
 must block those can allow only company models, or leave personal Codex off
 its engine list. Company Codex uses its own separate home, without your
 `config.toml`.
 
 ## Advanced: edit the file
 
-The same registry lives in `~/.openmausbot/config.json`:
+The same registry lives in `~/.jlfbot/config.json`:
 
 ```json
 {
@@ -126,7 +126,7 @@ The same registry lives in `~/.openmausbot/config.json`:
 ```
 
 `type` is `http` (Streamable HTTP, the default) or `sse`. If you edit the file
-by hand, restart OpenMausBot. Every bot whose engine can mount custom MCP
+by hand, restart JLFBot. Every bot whose engine can mount custom MCP
 servers gets the enabled tools on its next task.
 
 ## Rules that keep this safe
@@ -154,14 +154,14 @@ servers gets the enabled tools on its next task.
   tokens scoped to the one server.
 - **Testing is bounded.** A command is stopped after the handshake (or eight
   seconds), its output is capped, and its stderr is never sent to the UI. It
-  inherits none of OpenMausBot's workspace or provider credentials; only the
+  inherits none of JLFBot's workspace or provider credentials; only the
   environment variables configured for that MCP server are added. A URL test
   reads at most 1 MB and reports only the HTTP status of a refusal.
 - **Addresses are checked.** A URL server needs a full `http://` or
   `https://` address with no credentials in it; header names must be valid
   HTTP field names and values a single line.
 - **The result gate covers commands.** Oversized tool results from a stdio
-  server are trimmed before they reach the model (`OMB_MCP_RESULT_BUDGET`).
+  server are trimmed before they reach the model (`JLFBOT_MCP_RESULT_BUDGET`).
   A URL server is contacted by the engine itself, so there is no process to
   stand between; its results arrive untrimmed.
 - `"enabled": false` parks an entry without deleting it.

@@ -15,7 +15,7 @@ const posixIt = it.skipIf(process.platform === "win32");
 
 describe("augmentedPath", () => {
   afterEach(() => {
-    delete process.env.OMB_EXTRA_PATH;
+    delete process.env.JLFBOT_EXTRA_PATH;
     resetPathCacheForTests();
   });
 
@@ -23,16 +23,16 @@ describe("augmentedPath", () => {
     resetPathCacheForTests();
     const path = augmentedPath();
     const firstExisting = (process.env.PATH ?? "").split(delimiter).filter(Boolean)[0];
-    // OMB_EXTRA_PATH is unset here, so the inherited PATH leads
+    // JLFBOT_EXTRA_PATH is unset here, so the inherited PATH leads
     expect(path.split(delimiter)[0]).toBe(firstExisting);
   });
 
-  it("prepends OMB_EXTRA_PATH and dedupes", () => {
-    process.env.OMB_EXTRA_PATH = ["/tmp/omb-extra", "/tmp/omb-extra"].join(delimiter);
+  it("prepends JLFBOT_EXTRA_PATH and dedupes", () => {
+    process.env.JLFBOT_EXTRA_PATH = ["/tmp/jlfbot-extra", "/tmp/jlfbot-extra"].join(delimiter);
     resetPathCacheForTests();
     const parts = augmentedPath().split(delimiter);
-    expect(parts[0]).toBe("/tmp/omb-extra");
-    expect(parts.filter((p) => p === "/tmp/omb-extra")).toHaveLength(1);
+    expect(parts[0]).toBe("/tmp/jlfbot-extra");
+    expect(parts.filter((p) => p === "/tmp/jlfbot-extra")).toHaveLength(1);
   });
 
   posixIt("includes nvm bin dirs from the home dir, newest node first", () => {
@@ -61,14 +61,14 @@ describe("augmentedPath", () => {
   posixIt("makes a CLI in a known install dir spawnable despite a bare PATH", async () => {
     const bin = join(homedir(), ".local", "bin");
     mkdirSync(bin, { recursive: true });
-    const fake = join(bin, "omb-fake-cli");
+    const fake = join(bin, "jlfbot-fake-cli");
     writeFileSync(fake, "#!/bin/sh\necho found-me\n");
     chmodSync(fake, 0o755);
     resetPathCacheForTests();
 
     const stdout = await new Promise<string>((resolve, reject) => {
       execFile(
-        "omb-fake-cli",
+        "jlfbot-fake-cli",
         [],
         // bare GUI-style PATH + our augmentation — the augmentation must win
         { env: { PATH: augmentedPath() } },
@@ -81,7 +81,7 @@ describe("augmentedPath", () => {
   posixIt("keeps the last login-shell PATH available during a rescan", async () => {
     const shell = join(homedir(), "fake-login-shell");
     const rcOnlyBin = join(homedir(), "rc-only", "bin");
-    writeFileSync(shell, `#!/bin/sh\nprintf '__OMB_PATH__%s' '${rcOnlyBin}'\n`);
+    writeFileSync(shell, `#!/bin/sh\nprintf '__JLFBOT_PATH__%s' '${rcOnlyBin}'\n`);
     chmodSync(shell, 0o755);
 
     const previousShell = process.env.SHELL;
@@ -114,7 +114,7 @@ describe("augmentedPath", () => {
 
   it.skipIf(process.platform !== "win32")("finds Antigravity installed after launch", () => {
     const previous = process.env.LOCALAPPDATA;
-    const localAppData = mkdtempSync(join(tmpdir(), "omb-localappdata-"));
+    const localAppData = mkdtempSync(join(tmpdir(), "jlfbot-localappdata-"));
     try {
       process.env.LOCALAPPDATA = localAppData;
       const agyBin = join(localAppData, "agy", "bin");
@@ -144,7 +144,7 @@ EXIT /b
 :start
 SETLOCAL
 CALL :find_dp0
-"%dp0%\\node_modules\\pkg\\bin\\ombfake.exe"   %*
+"%dp0%\\node_modules\\pkg\\bin\\jlfbotfake.exe"   %*
 `;
 
 // ...and for one whose bin is a node script (the "_prog" dance)
@@ -164,7 +164,7 @@ IF EXIST "%dp0%\\node.exe" (
   SET PATHEXT=%PATHEXT:;.JS;=;%
 )
 
-endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\pkg\\bin\\ombfake.js" %*
+endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\pkg\\bin\\jlfbotfake.js" %*
 `;
 
 // ...and npm's own npm.cmd / npx.cmd, which Node's installer puts beside
@@ -204,7 +204,7 @@ describe("resolveCli", () => {
 winOnly("resolveCli (Windows)", () => {
   let dir: string;
   const onPath = () => {
-    process.env.OMB_EXTRA_PATH = dir;
+    process.env.JLFBOT_EXTRA_PATH = dir;
     resetPathCacheForTests();
   };
   const shimWith = (name: string, body: string, target: string, targetBody: string) => {
@@ -214,10 +214,10 @@ winOnly("resolveCli (Windows)", () => {
   };
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "omb-shim-"));
+    dir = mkdtempSync(join(tmpdir(), "jlfbot-shim-"));
   });
   afterEach(async () => {
-    delete process.env.OMB_EXTRA_PATH;
+    delete process.env.JLFBOT_EXTRA_PATH;
     resetPathCacheForTests();
     // These tests spawn the shims out of this directory; a just-exited one can
     // still be holding it for a beat after the call returns.
@@ -225,29 +225,29 @@ winOnly("resolveCli (Windows)", () => {
   });
 
   it("parses an npm .cmd shim down to the .exe it wraps", () => {
-    shimWith("ombfake.cmd", EXE_SHIM, "ombfake.exe", "MZ-not-really");
+    shimWith("jlfbotfake.cmd", EXE_SHIM, "jlfbotfake.exe", "MZ-not-really");
     onPath();
-    expect(resolveCli("ombfake", ["-p", "hi"])).toEqual({
-      command: join(dir, "node_modules", "pkg", "bin", "ombfake.exe"),
+    expect(resolveCli("jlfbotfake", ["-p", "hi"])).toEqual({
+      command: join(dir, "node_modules", "pkg", "bin", "jlfbotfake.exe"),
       args: ["-p", "hi"],
     });
   });
 
   it("uses the supplied PATH and PATHEXT without depending on the app environment", () => {
-    shimWith("ombfake.cmd", EXE_SHIM, "ombfake.exe", "MZ-not-really");
-    expect(resolveCli("ombfake", ["acp"], { Path: dir, PATHEXT: ".CMD" })).toEqual({
-      command: join(dir, "node_modules", "pkg", "bin", "ombfake.exe"),
+    shimWith("jlfbotfake.cmd", EXE_SHIM, "jlfbotfake.exe", "MZ-not-really");
+    expect(resolveCli("jlfbotfake", ["acp"], { Path: dir, PATHEXT: ".CMD" })).toEqual({
+      command: join(dir, "node_modules", "pkg", "bin", "jlfbotfake.exe"),
       args: ["acp"],
     });
     onPath();
-    expect(resolveCli("ombfake", [], { PATH: "", PATHEXT: ".CMD" })).toEqual({ command: "ombfake", args: [] });
+    expect(resolveCli("jlfbotfake", [], { PATH: "", PATHEXT: ".CMD" })).toEqual({ command: "jlfbotfake", args: [] });
   });
 
   it("parses an npm .cmd shim down to `node <cli.js>`, never the shim's own node.exe", async () => {
-    shimWith("ombfake.cmd", JS_SHIM, "ombfake.js", "console.log('js target ' + process.argv.slice(2).join(','));\n");
+    shimWith("jlfbotfake.cmd", JS_SHIM, "jlfbotfake.js", "console.log('js target ' + process.argv.slice(2).join(','));\n");
     onPath();
-    const r = resolveCli("ombfake", ["-p", "hi"]);
-    expect(r.args).toEqual([join(dir, "node_modules", "pkg", "bin", "ombfake.js"), "-p", "hi"]);
+    const r = resolveCli("jlfbotfake", ["-p", "hi"]);
+    expect(r.args).toEqual([join(dir, "node_modules", "pkg", "bin", "jlfbotfake.js"), "-p", "hi"]);
     expect(r.command.toLowerCase()).toMatch(/node\.exe$/);
     const stdout = await new Promise<string>((resolve, reject) =>
       execFile(r.command, r.args, (err, out) => (err ? reject(err) : resolve(out))),
@@ -272,14 +272,14 @@ winOnly("resolveCli (Windows)", () => {
   });
 
   it("prefers the PATHEXT hit over the extensionless sibling npm installs beside it", () => {
-    shimWith("ombfake.cmd", EXE_SHIM, "ombfake.exe", "MZ-not-really");
-    writeFileSync(join(dir, "ombfake"), "#!/bin/sh\n# the POSIX shim — unrunnable here\n");
+    shimWith("jlfbotfake.cmd", EXE_SHIM, "jlfbotfake.exe", "MZ-not-really");
+    writeFileSync(join(dir, "jlfbotfake"), "#!/bin/sh\n# the POSIX shim — unrunnable here\n");
     onPath();
-    expect(resolveCli("ombfake", []).command).toBe(join(dir, "node_modules", "pkg", "bin", "ombfake.exe"));
+    expect(resolveCli("jlfbotfake", []).command).toBe(join(dir, "node_modules", "pkg", "bin", "jlfbotfake.exe"));
   });
 
   it("runs a #!node script through node — Windows has no shebang support", async () => {
-    const script = join(dir, "ombfake-cli.ts");
+    const script = join(dir, "jlfbotfake-cli.ts");
     writeFileSync(script, "#!/usr/bin/env node\nconsole.log('shebang ' + process.argv.slice(2).join(','));\n");
     const r = resolveCli(script, ["a", "b"]);
     expect(r.command.toLowerCase()).toMatch(/node(\.exe)?$/);
@@ -292,7 +292,7 @@ winOnly("resolveCli (Windows)", () => {
   });
 
   it("never crosses the no-shell boundary for an unparseable shim", () => {
-    const shim = join(dir, "ombfake.cmd");
+    const shim = join(dir, "jlfbotfake.cmd");
     writeFileSync(shim, "@ECHO OFF\ncustom-launcher %*\n");
     onPath();
     const payload = JSON.stringify({
@@ -304,7 +304,7 @@ winOnly("resolveCli (Windows)", () => {
         },
       },
     });
-    const resolved = resolveCli("ombfake", ["--mcp-config", payload]);
+    const resolved = resolveCli("jlfbotfake", ["--mcp-config", payload]);
     expect(resolved.command.toLowerCase()).toBe(shim.toLowerCase());
     expect(resolved.args).toEqual(["--mcp-config", payload]);
   });
@@ -352,7 +352,7 @@ describe("resolveCli with wrapper commands", () => {
     const bin = join(homedir(), ".local", "bin");
     mkdirSync(bin, { recursive: true });
     // simulate "/Applications/My Tools/claude": a real file at a spaced path
-    const spacedDir = join(bin, "omb space dir");
+    const spacedDir = join(bin, "jlfbot space dir");
     mkdirSync(spacedDir, { recursive: true });
     const spaced = join(spacedDir, "myclaude");
     writeFileSync(spaced, "#!/bin/sh\n");
@@ -362,7 +362,7 @@ describe("resolveCli with wrapper commands", () => {
     });
     // a NONEXISTENT spaced string still splits (wrapper interpretation)
     expect(resolveCli(join(spacedDir, "nope two words"), ["--version"])).toEqual({
-      command: join(bin, "omb"),
+      command: join(bin, "jlfbot"),
       args: ["space", "dir/nope", "two", "words", "--version"],
     });
   });
@@ -372,7 +372,7 @@ describe("registerPathDir", () => {
   afterEach(() => resetPathCacheForTests());
 
   it("puts an app-managed directory ahead of PATH once it exists, and survives a rescan", () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-registered-path-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-registered-path-"));
     const missing = join(dir, "not-yet");
     try {
       registerPathDir(missing);

@@ -153,7 +153,7 @@ function groupPreview(group: Group, bots: Bot[]): string {
 }
 
 /** A small member stack identifies a group without turning it into a card. */
-function StackedMauses({ members, density }: { members: Bot[]; density: SidebarDensity }) {
+function StackedJlfes({ members, density }: { members: Bot[]; density: SidebarDensity }) {
   const iconOnly = density === "icons";
   const slotSize = iconOnly ? "size-12" : density === "compact" ? "size-7" : "size-8";
   const singleSize = iconOnly ? 44 : density === "compact" ? 26 : 32;
@@ -229,7 +229,7 @@ export function GroupListItem({
       title={density === "icons" ? group.name : undefined}
       aria-label={density === "icons" ? group.name : undefined}
     >
-      <StackedMauses members={members} density={density} />
+      <StackedJlfes members={members} density={density} />
       <div className={cn("min-w-0 flex-1", density === "icons" && "hidden")}>
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-[14px] font-semibold text-ink">{group.name}</span>
@@ -1760,7 +1760,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     if (event.dataTransfer.types.includes(FOLDER_DRAG_TYPE)) return;
     event.preventDefault();
     const from =
-      event.dataTransfer.getData("application/x-openmausbot-sidebar-section") ||
+      event.dataTransfer.getData("application/x-jlfbot-sidebar-section") ||
       event.dataTransfer.getData("text/plain") ||
       sectionDragRef.current.from;
     const over = sectionDragRef.current.over;
@@ -2085,7 +2085,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     dragging={draggingSectionId === id}
                     onDragStart={(event) => {
                       event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData("application/x-openmausbot-sidebar-section", id);
+                      event.dataTransfer.setData("application/x-jlfbot-sidebar-section", id);
                       event.dataTransfer.setData("text/plain", id);
                       sectionDragRef.current = { from: id, over: null };
                       setDraggingSectionId(id);

@@ -26,13 +26,13 @@ try {
   if (String(error?.message ?? error).includes("refusing to replace")) throw error;
 }
 
-const temporary = fs.mkdtempSync(path.join(path.resolve(runnerTemp), "omb-deb-upgrade-"));
+const temporary = fs.mkdtempSync(path.join(path.resolve(runnerTemp), "jlfbot-deb-upgrade-"));
 if (path.dirname(temporary) !== path.resolve(runnerTemp)) fail("temporary fixture escaped RUNNER_TEMP");
 const legacyRoot = path.join(temporary, "legacy-package");
 const controlRoot = path.join(legacyRoot, "DEBIAN");
-const legacyApp = path.join(legacyRoot, "opt", "OpenMausBot");
+const legacyApp = path.join(legacyRoot, "opt", "JLFBot");
 const legacyResources = path.join(legacyApp, "resources");
-const legacyDeb = path.join(temporary, "openmausbot_0.1.7_amd64.deb");
+const legacyDeb = path.join(temporary, "jlfbot_0.1.7_amd64.deb");
 
 try {
   fs.mkdirSync(controlRoot, { recursive: true, mode: 0o755 });
@@ -42,11 +42,11 @@ try {
   fs.writeFileSync(
     path.join(controlRoot, "control"),
     [
-      "Package: openmausbot",
+      "Package: jlfbot",
       "Version: 0.1.7",
       "Architecture: amd64",
-      "Maintainer: OpenMausBot CI <ci@openmausbot.invalid>",
-      "Description: Legacy OpenMausBot directory-mode upgrade fixture",
+      "Maintainer: JLFBot CI <ci@jlfbot.invalid>",
+      "Description: Legacy JLFBot directory-mode upgrade fixture",
       "",
     ].join("\n"),
     { mode: 0o644 },
@@ -57,7 +57,7 @@ try {
     stdio: "inherit",
   });
   execFileSync("dpkg", ["--install", legacyDeb], { stdio: "inherit" });
-  for (const directory of ["/opt/OpenMausBot", "/opt/OpenMausBot/resources"]) {
+  for (const directory of ["/opt/JLFBot", "/opt/JLFBot/resources"]) {
     const mode = fs.lstatSync(directory).mode & 0o777;
     if (mode !== 0o775) fail(`legacy fixture did not reproduce 0775 at ${directory}`);
   }

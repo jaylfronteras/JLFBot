@@ -1,9 +1,9 @@
-// Offline end-to-end Qwen selection, using the standard isolated OMB launcher.
+// Offline end-to-end Qwen selection, using the standard isolated JLFBOT launcher.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { launchVerificationServer, runControlOmb } from "./control-omb.ts";
+import { launchVerificationServer, runControlOmb } from "./control-jlfbot.ts";
 import { readQwenModelCatalog } from "../server/drivers/acp/qwen.ts";
 
 const fixture = await launchVerificationServer();
@@ -90,7 +90,7 @@ await import(${JSON.stringify(fake)});
   assert.equal(rpcAfterSecond.filter((method) => method === "session/prompt").length, 2);
   evidence.push({ name: "Pooled second turn", wait, messages, pidAfterFirst, pidAfterSecond, rpc: rpcAfterSecond });
   // Reestablish fallback (issue #1570): the pooled child refuses session/load
-  // of its own live session. OMB closes that child, pays the handshake once
+  // of its own live session. JLFBOT closes that child, pays the handshake once
   // on a fresh process, and loads the conversation there — never session/new
   // for continuity. FAKE_ACP_RPC_DUMP is rewritten per process, so counts
   // come from the append log that survives the respawn.

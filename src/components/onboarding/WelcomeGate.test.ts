@@ -23,7 +23,7 @@ vi.mock("@/state/store", () => ({ api: store.api, useStore: () => ({ state: stor
 vi.mock("@/lib/analytics", () => ({ emailGateDone: () => false }));
 // The gate's job is choosing; the flow itself has its own recipe.
 vi.mock("./WelcomeFlow", () => ({ WelcomeFlow: () => null }));
-vi.mock("@/components/Avatar", () => ({ MausAvatar: () => null }));
+vi.mock("@/components/Avatar", () => ({ JlfAvatar: () => null }));
 import { SharedWorkspaceHint } from "./SharedWorkspaceHint";
 import { useWelcomeViewer, WelcomeGate } from "./WelcomeGate";
 import { WelcomeFlow } from "./WelcomeFlow";
@@ -106,7 +106,7 @@ describe("who gets the welcome flow", () => {
     await flush();
     expect(store.api).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
-    expect(localStorage.getItem("omb.onboarding.sharedWorkspaceHint")).toBe("1");
+    expect(localStorage.getItem("jlfbot.onboarding.sharedWorkspaceHint")).toBe("1");
     // once dismissed, a fresh visit in this browser does not show it again
     fixture.values = [];
     expect(render(() => SharedWorkspaceHint({ replay: false, onClose: vi.fn() })).html).toBe("");

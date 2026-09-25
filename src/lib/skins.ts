@@ -36,7 +36,7 @@ export const SKINS: readonly Skin[] = [
 
 export const DEFAULT_SKIN: SkinId = "midnight";
 
-const KEY = "omb-skin";
+const KEY = "jlfbot-skin";
 
 // The input is whatever localStorage handed back — a string this app wrote
 // on an earlier run, a value edited by hand, or a leftover from a renamed

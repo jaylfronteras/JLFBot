@@ -16,7 +16,7 @@ import {
   openMessageFile,
 } from "./message-file.ts";
 
-const suite = mkdtempSync(join(tmpdir(), "omb-message-file-"));
+const suite = mkdtempSync(join(tmpdir(), "jlfbot-message-file-"));
 const workspace = join(suite, "workspace");
 const outside = join(suite, "outside");
 
@@ -73,12 +73,12 @@ describe("message-linked files", () => {
     ))
       .toBe(false);
     expect(messageReferencesFile(
-      "[Open it](C:\\Users\\Maus\\report.md)",
-      "C:\\Users\\Maus\\report.md",
+      "[Open it](C:\\Users\\JLFBot\\report.md)",
+      "C:\\Users\\JLFBot\\report.md",
     )).toBe(true);
     expect(messageReferencesFile(
-      "[Open it](file:///C:/Users/Maus/release%20notes.md)",
-      "C:\\Users\\Maus\\release notes.md",
+      "[Open it](file:///C:/Users/JLFBot/release%20notes.md)",
+      "C:\\Users\\JLFBot\\release notes.md",
     )).toBe(true);
     expect(messageReferencesFile(
       "[Open it](file://server/share/phone%20report.md)",
@@ -98,19 +98,19 @@ describe("message-linked files", () => {
     // Equivalent separators and dot segments are normalised within a path
     // flavour, but distinct path flavours and casing remain distinct.
     expect(messageReferencesFile(
-      "[Open it](C:/Users/Maus/drafts/../report.md)",
-      "C:\\Users\\Maus\\report.md",
+      "[Open it](C:/Users/JLFBot/drafts/../report.md)",
+      "C:\\Users\\JLFBot\\report.md",
     )).toBe(true);
-    expect(messageReferencesFile("[Open it](/C:/Users/Maus/report.md)", "C:/Users/Maus/report.md"))
+    expect(messageReferencesFile("[Open it](/C:/Users/JLFBot/report.md)", "C:/Users/JLFBot/report.md"))
       .toBe(false);
-    expect(messageReferencesFile("[Open it](C:/Users/Maus/report.md)", "c:/users/maus/report.md"))
+    expect(messageReferencesFile("[Open it](C:/Users/JLFBot/report.md)", "c:/users/jlf/report.md"))
       .toBe(false);
   });
 
   it("normalizes encoded Windows and UNC targets before authorization", () => {
     expect(messageReferencesFile(
-      "[Open it](C:/Users/Maus/release%20notes.md?download=1#latest)",
-      "C:\\Users\\Maus\\release notes.md",
+      "[Open it](C:/Users/JLFBot/release%20notes.md?download=1#latest)",
+      "C:\\Users\\JLFBot\\release notes.md",
     )).toBe(true);
     expect(messageReferencesFile(
       "[Web link](//server/share/team%20notes.md?download=1#latest)",
@@ -124,22 +124,22 @@ describe("message-linked files", () => {
     // Decoding is deliberately single-pass: a double-encoded space must not
     // authorize the ordinary decoded path.
     expect(messageReferencesFile(
-      "[Open it](C:/Users/Maus/release%2520notes.md?download=1)",
-      "C:\\Users\\Maus\\release notes.md",
+      "[Open it](C:/Users/JLFBot/release%2520notes.md?download=1)",
+      "C:\\Users\\JLFBot\\release notes.md",
     )).toBe(false);
   });
 
-  it("keeps a Windows path's backslash before punctuation, as in \\.openmausbot", () => {
-    const report = "C:\\Users\\Maus\\.openmausbot\\workspaces\\bot\\_drafts\\report.md";
-    const chart = "C:\\Users\\Maus\\.openmausbot\\workspaces\\bot\\chart.png";
-    const notes = "C:\\Users\\Maus\\.openmausbot\\release notes.md";
+  it("keeps a Windows path's backslash before punctuation, as in \\.jlfbot", () => {
+    const report = "C:\\Users\\JLFBot\\.jlfbot\\workspaces\\bot\\_drafts\\report.md";
+    const chart = "C:\\Users\\JLFBot\\.jlfbot\\workspaces\\bot\\chart.png";
+    const notes = "C:\\Users\\JLFBot\\.jlfbot\\release notes.md";
     const markdown = `[Report](${report})\n\n![Chart](${chart})\n\n[Notes][notes]\n\n[notes]: <${notes}>`;
 
     expect(messageReferencesFile(markdown, report)).toBe(true);
     expect(messageReferencesFile(markdown, notes)).toBe(true);
     expect(messageImageTargetAt(markdown, markdown.indexOf("![Chart]"))).toBe(chart);
     // The folders a dropped backslash would have joined are not what was linked.
-    expect(messageReferencesFile(markdown, "C:\\Users\\Maus.openmausbot\\workspaces\\bot_drafts\\report.md")).toBe(false);
+    expect(messageReferencesFile(markdown, "C:\\Users\\JLFBot.jlfbot\\workspaces\\bot_drafts\\report.md")).toBe(false);
   });
 
   it("resolves only definitions used by rendered reference links", () => {
@@ -268,10 +268,10 @@ describe("message-linked files", () => {
   it("normalizes an encoded Windows path before opening it", async () => {
     const path = process.platform === "win32"
       ? join(workspace, "release notes.md")
-      : join(workspace, "C:\\Users\\Maus\\release notes.md");
+      : join(workspace, "C:\\Users\\JLFBot\\release notes.md");
     const href = process.platform === "win32"
       ? `${path.replace("release notes.md", "release%20notes.md")}?download=1#latest`
-      : "C:\\Users\\Maus\\release%20notes.md?download=1#latest";
+      : "C:\\Users\\JLFBot\\release%20notes.md?download=1#latest";
     writeFileSync(path, "windows path bytes");
 
     const opened = await openMessageFile(href, [workspace]);

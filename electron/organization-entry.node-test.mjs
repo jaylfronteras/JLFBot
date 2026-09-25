@@ -7,7 +7,7 @@ import environments from "./environments.cjs";
 import { createOrganizationEntry, isOrganizationDeepLink, takeOrganizationDeepLink, organizationRestartIntent, withOrganizationRestartIntent, withoutOrganizationRestartIntent } from "./organization-entry.mjs";
 
 const remote = { id: "old", name: "Old cloud", origin: "https://old.example" };
-const companion = { endpoint: "https://c-old.openmausbot.com", serverName: "Old computer", deviceId: "device-a" };
+const companion = { endpoint: "https://c-old.jlfbot.example.com", serverName: "Old computer", deviceId: "device-a" };
 function fixture({ activeId = "old", remoteAccess = null, restartIntent = false, accepted = true } = {}) {
   const state = { environments: { activeId, environments: [remote] }, remoteAccess, restartIntent };
   const calls = [];
@@ -25,7 +25,7 @@ function fixture({ activeId = "old", remoteAccess = null, restartIntent = false,
 
 test("the organisation protocol is a fixed action without URL routing or credentials", () => {
   assert.equal(isOrganizationDeepLink("jlfbot://organization"), true);
-  for (const value of [null, {}, "", "jlfbot://organization/", "jlfbot://organization?", "jlfbot://organization#", "jlfbot://organization?url=https://old.example", "jlfbot://organization#token=secret", "jlfbot://organization/other", "openmausbot://user@organization", "jlfbot://organization:443", "jlfbot://organization.evil", "https://organization", " jlfbot://organization", "openmausbot://%6frganization"]) {
+  for (const value of [null, {}, "", "jlfbot://organization/", "jlfbot://organization?", "jlfbot://organization#", "jlfbot://organization?url=https://old.example", "jlfbot://organization#token=secret", "jlfbot://organization/other", "jlfbot://user@organization", "jlfbot://organization:443", "jlfbot://organization.evil", "https://organization", " jlfbot://organization", "jlfbot://%6frganization"]) {
     assert.equal(isOrganizationDeepLink(value), false);
   }
 });
@@ -37,7 +37,7 @@ test("local entry opens Settings without enrollment or persistence", async () =>
 });
 
 test("consuming a launch action prevents it replaying on a later restart without changing other arguments", () => {
-  const original = ["/Applications/JLFBot", "--profile=fixture", "jlfbot://organization?ignored", "openmausbot://install/example"];
+  const original = ["/Applications/JLFBot", "--profile=fixture", "jlfbot://organization?ignored", "jlfbot://install/example"];
   const argv = [...original, "jlfbot://organization", "jlfbot://organization"];
   assert.equal(takeOrganizationDeepLink(argv), true);
   assert.deepEqual(argv, original);
@@ -65,7 +65,7 @@ test("the shipped updater adapter explicitly omits only the fixed action and its
   const bundle = readFileSync(new URL("./vendor/electron-updater.cjs", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.ok(bundle.includes(patched));
   const calls = [];
-  const argv = ["/fixture/JLFBot", "--fixture", "openmausbot://organization", "jlfbot://organization?ignored"];
+  const argv = ["/fixture/JLFBot", "--fixture", "jlfbot://organization", "jlfbot://organization?ignored"];
   runInNewContext(`({ app, ${patched} }).relaunch();`, {
     process: { argv }, app: { relaunch: options => calls.push(options.args) },
   });

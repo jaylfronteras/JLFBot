@@ -16,7 +16,7 @@ const PASSWORD = "correct horse battery staple";
 const AVATAR_BYTES = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 const scratch: string[] = [];
 function directory(): string {
-  const path = mkdtempSync(join(tmpdir(), "omb-workspace-backup-"));
+  const path = mkdtempSync(join(tmpdir(), "jlfbot-workspace-backup-"));
   scratch.push(path);
   return path;
 }
@@ -59,10 +59,10 @@ function fixture(root: string): DatabaseSync {
 function encryptedPayload(root: string, plaintext: Buffer): string {
   const salt = randomBytes(16);
   const iv = randomBytes(12);
-  const header = Buffer.concat([Buffer.from("OMB-WORKSPACE-1\n"), salt, iv]);
+  const header = Buffer.concat([Buffer.from("JLFBOT-WORKSPACE-1\n"), salt, iv]);
   const cipher = createCipheriv("aes-256-gcm", scryptSync(PASSWORD, salt, 32, { N: 131_072, r: 8, p: 1, maxmem: 256 * 1024 ** 2 }), iv);
   cipher.setAAD(header);
-  const path = join(root, "malicious.ombbackup");
+  const path = join(root, "malicious.jlfbotbackup");
   writeFileSync(path, Buffer.concat([header, cipher.update(plaintext), cipher.final(), cipher.getAuthTag()]));
   return path;
 }
@@ -87,7 +87,7 @@ describe("encrypted full workspace backups", () => {
       const originalDb = readFileSync(join(source, "messages.db"));
       const exported = await createWorkspaceBackup(source, {
         password: PASSWORD, appVersion: "test",
-        clientState: { "omb-drafts": '{"thread":"unsent"}', "omb-draft-attachments": JSON.stringify({ thread: [{ kind: "file", path: join(source, "attachments", "image.png") }] }) },
+        clientState: { "jlfbot-drafts": '{"thread":"unsent"}', "jlfbot-draft-attachments": JSON.stringify({ thread: [{ kind: "file", path: join(source, "attachments", "image.png") }] }) },
       });
       expect(exported.summary).toMatchObject({ bots: 1, groups: 1, threads: 1, messages: 1 });
       expect(exported.summary).not.toHaveProperty("includesCredentials");
@@ -103,7 +103,7 @@ describe("encrypted full workspace backups", () => {
       const targetComputers = { version: 1, environmentId: "target-environment", computers: [{ id: "target-computer", name: "Destination desktop", section: null }] };
       json(join(target, "team-computers.json"), targetComputers);
       writeFileSync(join(target, "environment-id"), "target-environment");
-      writeFileSync(join(target, "openmausbot-server.lease"), "live-lease");
+      writeFileSync(join(target, "jlfbot-server.lease"), "live-lease");
       writeFileSync(join(target, "messages.db-wal"), "old database WAL must not enter the new DB");
       writeFileSync(join(target, "messages.db-shm"), "old database shared memory");
       const staged = await stageWorkspaceBackup(target, exported.path, { password: PASSWORD });
@@ -128,7 +128,7 @@ describe("encrypted full workspace backups", () => {
       expect(readJson(join(target, "sessions.json"))).toEqual({ identity: "target-session" });
       expect(readJson(join(target, "team-computers.json"))).toEqual(targetComputers);
       expect(readFileSync(join(target, "environment-id"), "utf8")).toBe("target-environment");
-      expect(readFileSync(join(target, "openmausbot-server.lease"), "utf8")).toBe("live-lease");
+      expect(readFileSync(join(target, "jlfbot-server.lease"), "utf8")).toBe("live-lease");
       expect(existsSync(join(target, "messages.db-wal"))).toBe(false);
       expect(readFileSync(join(result.safetyCopyPath!, "data", "messages.db-wal"), "utf8")).toBe("old database WAL must not enter the new DB");
       expect(existsSync(join(target, "tools"))).toBe(false);
@@ -160,7 +160,7 @@ describe("encrypted full workspace backups", () => {
       const receipt = readLastWorkspaceRestore(target)!;
       expect(receipt.id).toBe(staged.id);
       expect(receipt).not.toHaveProperty("credentials");
-      expect(JSON.parse(receipt.clientState!["omb-draft-attachments"]).thread[0].path).toBe(join(target, "attachments", "image.png"));
+      expect(JSON.parse(receipt.clientState!["jlfbot-draft-attachments"]).thread[0].path).toBe(join(target, "attachments", "image.png"));
       expect(applyPendingWorkspaceRestore(target)).toEqual({ restored: false });
       if (process.platform !== "win32") {
         expect(statSync(exported.path).mode & 0o777).toBe(0o600);
@@ -194,7 +194,7 @@ describe("encrypted full workspace backups", () => {
     expect(readdirSync(join(target, ".backups"))).toEqual([]);
     const corrupted = readFileSync(exported.path);
     corrupted[corrupted.length - 1] ^= 1;
-    const path = join(source, "corrupted.ombbackup");
+    const path = join(source, "corrupted.jlfbotbackup");
     writeFileSync(path, corrupted);
     await expect(stageWorkspaceBackup(target, path, { password: PASSWORD })).rejects.toThrow(/damaged/);
     expect(readFileSync(join(target, "untouched"), "utf8")).toBe("original");
@@ -210,7 +210,7 @@ describe("encrypted full workspace backups", () => {
       "providers/account/auth.json", "providers/antigravity/account/acp_token.json",
       "caddy/data/private.key", "chrome-profile/Cookies", ".agent-browser/auth.json",
       "vm-home/.browser-profiles/chrome/Cookies", "vm-homes/abc/.browser-profiles/chromium/Cookies",
-      "tmp/omb-mcp-123/mcp.json", ".tmp/secret",
+      "tmp/jlfbot-mcp-123/mcp.json", ".tmp/secret",
     ];
     for (const root of [source, target]) {
       for (const path of authPaths) {

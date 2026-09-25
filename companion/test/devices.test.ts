@@ -30,7 +30,7 @@ describe("DeviceRegistry", () => {
     const registry = new DeviceRegistry();
     const { token, device } = pair(registry);
 
-    expect(token.startsWith("omb_")).toBe(true);
+    expect(token.startsWith("jlf_")).toBe(true);
     expect(registry.authenticate(token)?.id).toBe(device.id);
 
     // the file on disk holds a digest, not the credential
@@ -108,7 +108,7 @@ describe("DeviceRegistry", () => {
 
     expect(registry.authenticate(undefined)).toBeNull();
     expect(registry.authenticate("")).toBeNull();
-    expect(registry.authenticate("omb_nope")).toBeNull();
+    expect(registry.authenticate("jlf_nope")).toBeNull();
     expect(registry.authenticate(token.slice(0, -1))).toBeNull();
     expect(registry.authenticate(`${token}x`)).toBeNull();
   });
@@ -160,7 +160,7 @@ describe("DeviceRegistry", () => {
     expect(registry.redeem(credential, "iPhone", "different-request-id")).toMatchObject({
       error: expect.stringContaining("no pairing"),
     });
-    expect(registry.redeem("omb_pair_wrong", "iPhone", requestId)).toMatchObject({
+    expect(registry.redeem("jlf_pair_wrong", "iPhone", requestId)).toMatchObject({
       error: expect.stringContaining("no pairing"),
     });
   });
@@ -232,7 +232,7 @@ describe("DeviceRegistry", () => {
     const registry = new DeviceRegistry();
     const { code, token } = registry.openPairing();
 
-    expect(token).toMatch(/^omb_pair_[A-Za-z0-9_-]{43}$/);
+    expect(token).toMatch(/^jlf_pair_[A-Za-z0-9_-]{43}$/);
     expect(registry.redeem(token, "iPhone")).toHaveProperty("token");
     expect(registry.redeem(code, "iPad")).toMatchObject({
       error: expect.stringContaining("no pairing"),
@@ -360,10 +360,10 @@ describe("cleanDeviceName", () => {
 
 describe("bearerToken", () => {
   it("reads only a well-formed Bearer header", () => {
-    expect(bearerToken("Bearer omb_abc")).toBe("omb_abc");
-    expect(bearerToken("  Bearer omb_abc  ")).toBe("omb_abc");
-    expect(bearerToken("omb_abc")).toBeUndefined();
-    expect(bearerToken("Basic omb_abc")).toBeUndefined();
+    expect(bearerToken("Bearer jlf_abc")).toBe("jlf_abc");
+    expect(bearerToken("  Bearer jlf_abc  ")).toBe("jlf_abc");
+    expect(bearerToken("jlf_abc")).toBeUndefined();
+    expect(bearerToken("Basic jlf_abc")).toBeUndefined();
     expect(bearerToken(undefined)).toBeUndefined();
   });
 
@@ -374,11 +374,11 @@ describe("bearerToken", () => {
   // one of its own: the same header authenticated on one path and not the
   // other, depending on which code it happened to meet.
   it("matches the scheme however it is cased", () => {
-    expect(bearerToken("bearer omb_abc")).toBe("omb_abc");
-    expect(bearerToken("BEARER omb_abc")).toBe("omb_abc");
-    expect(bearerToken("BeArEr omb_abc")).toBe("omb_abc");
+    expect(bearerToken("bearer jlf_abc")).toBe("jlf_abc");
+    expect(bearerToken("BEARER jlf_abc")).toBe("jlf_abc");
+    expect(bearerToken("BeArEr jlf_abc")).toBe("jlf_abc");
     // a tab separates scheme from credential just as legally as a space
-    expect(bearerToken("BeArEr\tomb_abc")).toBe("omb_abc");
+    expect(bearerToken("BeArEr\tjlf_abc")).toBe("jlf_abc");
     // still not a free-for-all: a scheme with nothing after it is not a
     // credential, however much whitespace is standing in for one
     expect(bearerToken("Bearer ")).toBeUndefined();

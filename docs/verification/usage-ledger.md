@@ -28,7 +28,7 @@ a period, group it, or **Export CSV**.
 pnpm exec vitest run --no-file-parallelism server/usage-ledger-api.test.ts server/usage-attribution.e2e.test.ts
 ```
 
-The test launches a fresh `control-omb` fixture with the repository's fake
+The test launches a fresh `control-jlfbot` fixture with the repository's fake
 engine, creates a bot, sends one turn as the owner through the control surface
 and one as a paired device with a label, waits for both to settle, then checks
 the month file has exactly two rows with the right triggers and no message
@@ -49,10 +49,10 @@ this machine, and a chat-only device cannot reach the route at all.
 For the same by hand:
 
 ```sh
-node --experimental-strip-types scripts/control-omb.ts launch
-pnpm control:omb new-bot --name Probe --url http://127.0.0.1:PORT
-pnpm control:omb send --bot BOT_ID --text "hello" --url http://127.0.0.1:PORT
-pnpm control:omb wait --bot BOT_ID --timeout 30 --url http://127.0.0.1:PORT
+node --experimental-strip-types scripts/control-jlfbot.ts launch
+pnpm control:jlfbot new-bot --name Probe --url http://127.0.0.1:PORT
+pnpm control:jlfbot send --bot BOT_ID --text "hello" --url http://127.0.0.1:PORT
+pnpm control:jlfbot wait --bot BOT_ID --timeout 30 --url http://127.0.0.1:PORT
 cat DATA_DIR/usage/$(date -u +%Y-%m).jsonl
 ```
 
