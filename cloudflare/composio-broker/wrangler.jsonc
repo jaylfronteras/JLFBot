@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-18",
   "compatibility_flags": ["nodejs_compat"],
+  // Deploys to <name>.<your-subdomain>.workers.dev on YOUR account
+  // (CLOUDFLARE_ACCOUNT_ID); nothing here points at upstream infrastructure.
   "workers_dev": true,
   "vars": {
     "COMPOSIO_API_BASE": "https://backend.composio.dev/api/v3.1",
@@ -15,7 +17,7 @@
     {
       "binding": "DB",
       "database_name": "jlfbot-composio",
-      "database_id": "435bcde1-c017-416f-b041-7ffc508e9d88",
+      "database_id": "<YOUR_D1_DATABASE_ID>",
       "migrations_dir": "migrations"
     }
   ],

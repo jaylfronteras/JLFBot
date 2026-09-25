@@ -148,13 +148,14 @@ The checked-in Wrangler file is intentionally non-deployable production
 scaffolding. No remote resource was created or changed while preparing it.
 Before a production deployment, an operator must:
 
-1. Choose and route an HTTPS hostname, then replace `BETTER_AUTH_URL`. The
-   Worker has `workers_dev` disabled and no production route in this PR.
+1. Choose and route an HTTPS hostname (add a `routes` entry to `wrangler.jsonc`),
+   then replace `BETTER_AUTH_URL`. Set `CLOUDFLARE_ACCOUNT_ID` in your deploy
+   environment; `wrangler.jsonc` deliberately has no `account_id`.
 2. Generate a strong production `BETTER_AUTH_SECRET` and add it with Wrangler's
    interactive secret command. Add `CLOUDFLARE_API_TOKEN` the same way. The
    checked-in `secrets.required` names validate local configuration and generate
    binding types; they do not contain or upload values.
-3. Create the D1 database, replace the all-zero `database_id`, review the pinned
+3. Create the D1 database, replace the `<YOUR_D1_DATABASE_ID>` placeholder, review the pinned
    migrations, and apply them to that database.
 4. Complete Cloudflare Email Sending domain onboarding, replace the placeholder
    sender in both `EMAIL_FROM` and `allowed_sender_addresses`, and grant the
