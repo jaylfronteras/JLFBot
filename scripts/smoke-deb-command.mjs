@@ -71,8 +71,8 @@ const installed = inContainer(
   [
     prepare,
     command,
-    'dpkg-query -W -f="INSTALLED=\\${Version} \\${db:Status-Abbrev}\\n" openmausbot',
-    'test -x /opt/OpenMausBot/openmausbot && echo "EXECUTABLE=yes"',
+    'dpkg-query -W -f="INSTALLED=\\${Version} \\${db:Status-Abbrev}\\n" jlfbot',
+    'test -x /opt/JLFBot/jlfbot && echo "EXECUTABLE=yes"',
   ].join("\n"),
 );
 
