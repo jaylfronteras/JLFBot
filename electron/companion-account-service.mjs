@@ -9,7 +9,10 @@ import {
   withoutManagedCompanionTunnelAccess,
 } from "./managed-companion-tunnel.mjs";
 
-export const DEFAULT_COMPANION_CONTROL_PLANE_URL = "https://accounts.openmausbot.com";
+// JLFBot has no hosted account service (upstream used its own
+// accounts.openmausbot.com). Phone relay through a control plane is off unless
+// OMB_CONTROL_PLANE_URL names one you run yourself (cloudflare/control-plane).
+export const DEFAULT_COMPANION_CONTROL_PLANE_URL = "";
 
 export const COMPANION_CLIENT_INSTANCE_FIELD = "companionClientInstanceId";
 export const COMPANION_ACCOUNT_TOKEN_FIELD = "companionAccountToken";
@@ -28,7 +31,7 @@ const DEFAULT_HEALTH_CACHE_MS = 30_000;
 const ownString = (document, field) =>
   typeof document?.[field] === "string" ? document[field] : "";
 
-/** Packaged builds have a safe hosted default. Development must opt into an
+/** There is no hosted default (see above). Builds must opt into an
  * exact HTTPS origin (or HTTP loopback Worker) so a contributor never sends
  * an OTP or bearer to an accidental host. An explicitly invalid override
  * disables the feature instead of silently falling back to production. */

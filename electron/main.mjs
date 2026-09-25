@@ -94,7 +94,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 127.0.0.1 explicitly — vite binds IPv4; a bare "localhost" here can
 // resolve to ::1 and paint a black window
 const DEV_URL = process.env.ELECTRON_START_URL ?? "http://127.0.0.1:5199";
-const DEFAULT_COMPOSIO_BROKER_URL = "https://openmausbot-composio.milindsoni201.workers.dev";
+// Upstream routed packaged builds through the upstream maintainer's own
+// Cloudflare Worker. JLFBot has no hosted broker: managed Composio stays off
+// unless OMB_COMPOSIO_BROKER_URL points at a broker you deployed yourself
+// (see cloudflare/composio-broker/README.md).
+const DEFAULT_COMPOSIO_BROKER_URL = "";
 let SERVER_PORT = 8799;
 const APP_ICON = path.join(__dirname, "resources/app-icon.png");
 let desktopViewerWindow = null;
