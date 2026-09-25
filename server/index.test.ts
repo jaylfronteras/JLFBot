@@ -234,6 +234,27 @@ const api = async (method: string, path: string, body?: unknown): Promise<{ stat
   return { status: res.status, body: await res.json() };
 };
 
+// Tests in this file share ONE server process, so teardown has to leave it
+// clean. A bare `DELETE /api/bots/:id` races the server's asynchronous release
+// of a turn, Box dispatch or control lease: on slower runners (notably
+// Windows CI) it could land while the bot was still "in use", get a 409 that
+// nobody checked, and leak a busy bot (or a stale Chief of Staff) into every
+// later test — which then failed with unrelated 409s such as "stop active bot
+// work and computer control before changing the Box account". Retry until the
+// server agrees the bot is gone, and fail at the source if it never does.
+const removeBot = async (botId: string | undefined | null, timeoutMs = 20_000): Promise<void> => {
+  if (!botId) return;
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const res = await api("DELETE", `/api/bots/${botId}`);
+    if (res.status === 200 || res.status === 404) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`test cleanup could not delete bot ${botId}: ${res.status} ${JSON.stringify(res.body)}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+};
+
 /** Pair a device the way a phone or a second person does, and act as them. */
 const asPairedPerson = async (label: string) => {
   const opened = await api("POST", "/api/auth/pairing", {});
@@ -1132,7 +1153,7 @@ describe("harness HTTP API", () => {
       // here shows up as somebody else's failure much later.
       for (const id of cleanup) {
         await api("POST", `/api/bots/${id}/interrupt`).catch(() => undefined);
-        await api("DELETE", `/api/bots/${id}`).catch(() => undefined);
+        await removeBot(id);
       }
       await person.call("DELETE", "/api/auth/session").catch(() => undefined);
     }
@@ -1324,7 +1345,7 @@ describe("harness HTTP API", () => {
       expect(state.groups.find((group: { id: string }) => group.id === room.id).memberIds).toEqual([third.id]);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      for (const bot of [first, second, third]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [first, second, third]) await removeBot(bot.id);
     }
   });
 
@@ -1374,8 +1395,8 @@ describe("harness HTTP API", () => {
     } finally {
       await api("DELETE", `/api/routines/${routineId}`).catch(() => undefined);
       await api("DELETE", `/api/groups/${room.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${lead.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${other.id}`).catch(() => undefined);
+      await removeBot(lead.id);
+      await removeBot(other.id);
     }
   });
 
@@ -1392,7 +1413,7 @@ describe("harness HTTP API", () => {
       expect(state.groups.find((group: { id: string }) => group.id === room.id).memberIds).toEqual([bot.id]);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -1414,7 +1435,7 @@ describe("harness HTTP API", () => {
       expect(created.status).toBe(201);
       await api("DELETE", `/api/groups/${created.body.group.id}`);
     } finally {
-      for (const bot of [archived, active]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [archived, active]) await removeBot(bot.id);
     }
   });
 
@@ -1431,7 +1452,7 @@ describe("harness HTTP API", () => {
       expect(patched.body.group.memberIds).toEqual([second.id, first.id]);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      for (const bot of [first, second]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [first, second]) await removeBot(bot.id);
     }
   });
 
@@ -1456,7 +1477,7 @@ describe("harness HTTP API", () => {
       expect(patched.body.group.defaultResponder).toEqual({ kind: "member", botId: other.id });
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      for (const bot of [lead, other]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [lead, other]) await removeBot(bot.id);
     }
   });
 
@@ -1589,7 +1610,7 @@ describe("harness HTTP API", () => {
     } finally {
       if (room) await api("DELETE", `/api/groups/${room.id}`);
       await api("POST", `/api/bots/${bot.id}/interrupt`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -1666,7 +1687,7 @@ describe("harness HTTP API", () => {
       expect(current.threadId).toBe(nextTask.body.task.threadId);
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`, {}).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -1693,7 +1714,7 @@ describe("harness HTTP API", () => {
       }, { timeout: 5_000 }).toBe("Fix login timeout");
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
       rmSync(oneShotTextFile, { force: true });
     }
   });
@@ -1727,7 +1748,7 @@ describe("harness HTTP API", () => {
         .toBe(firstMessage);
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -1760,7 +1781,7 @@ describe("harness HTTP API", () => {
     } finally {
       await api("POST", `/api/groups/${room.id}/interrupt`, {}).catch(() => undefined);
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${member.id}`);
+      await removeBot(member.id);
       rmSync(oneShotTextFile, { force: true });
     }
   });
@@ -1810,7 +1831,7 @@ describe("harness HTTP API", () => {
     } finally {
       await api("POST", `/api/groups/${room.id}/interrupt`, {}).catch(() => undefined);
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${member.id}`);
+      await removeBot(member.id);
     }
   });
 
@@ -1908,7 +1929,7 @@ describe("harness HTTP API", () => {
       expect((await api("POST", `/api/groups/${room.id}/tasks`, { title: 42 })).status).toBe(400);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -2004,9 +2025,9 @@ describe("harness HTTP API", () => {
       await api("POST", `/api/bots/${chief.id}/interrupt`);
       if (outsiderChannel?.id) await api("DELETE", `/api/groups/${outsiderChannel.id}`);
       if (channel?.id) await api("DELETE", `/api/groups/${channel.id}`);
-      for (const botId of createdBotIds) await api("DELETE", `/api/bots/${botId}`);
-      await api("DELETE", `/api/bots/${outsider.id}`);
-      await api("DELETE", `/api/bots/${chief.id}`);
+      for (const botId of createdBotIds) await removeBot(botId);
+      await removeBot(outsider.id);
+      await removeBot(chief.id);
     }
   });
 
@@ -2085,7 +2106,7 @@ describe("harness HTTP API", () => {
         await api("POST", `/api/groups/${id}/interrupt`, {});
         await api("DELETE", `/api/groups/${id}`);
       }
-      for (const bot of bots) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of bots) await removeBot(bot.id);
     }
   });
 
@@ -2128,8 +2149,8 @@ describe("harness HTTP API", () => {
     } finally {
       held?.close();
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${chief.id}`);
-      await api("DELETE", `/api/bots/${peer.id}`);
+      await removeBot(chief.id);
+      await removeBot(peer.id);
     }
   });
 
@@ -2169,9 +2190,9 @@ describe("harness HTTP API", () => {
       held?.close();
       const state = (await api("GET", "/api/bots?messages=0")).body;
       for (const bot of state.bots.filter((candidate: { name: string }) => candidate.name === lateName)) {
-        await api("DELETE", `/api/bots/${bot.id}`);
+        await removeBot(bot.id);
       }
-      if (!deleted) await api("DELETE", `/api/bots/${chief.id}`);
+      if (!deleted) await removeBot(chief.id);
     }
   });
 
@@ -2198,7 +2219,7 @@ describe("harness HTTP API", () => {
       }
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -2233,7 +2254,7 @@ describe("harness HTTP API", () => {
       expect((await chiefRoomRequest(BASE, token, "manage-room", { roomId: "test-dm", action: "rename", name: "A room" })).status).toBe(403);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -2271,7 +2292,7 @@ describe("harness HTTP API", () => {
       expect(state.groups.find((group: { id: string }) => group.id === room.id).name).toBe("Project Atlas");
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -2354,7 +2375,7 @@ describe("harness HTTP API", () => {
     expect(roomCleared.body.group).not.toHaveProperty("pinnedMessageId");
 
     // deleted conversations drop out of search rather than 404ing it
-    await api("DELETE", `/api/bots/${bot.id}`);
+    await removeBot(bot.id);
     const after = await api("GET", "/api/search?q=nice%20to%20meet");
     expect(after.body.hits.find((h: { botId?: string }) => h.botId === bot.id)).toBeUndefined();
   });
@@ -2385,8 +2406,8 @@ describe("harness HTTP API", () => {
       })).status).toBe(404);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
-      await api("DELETE", `/api/bots/${foreign.id}`);
+      await removeBot(bot.id);
+      await removeBot(foreign.id);
     }
   });
 
@@ -2574,7 +2595,7 @@ describe("harness HTTP API", () => {
       expect(provisioned.body.error).toMatch(/fixture refused create/);
       expect(boxRouteCalls).toContainEqual({ method: "POST", path: "/boxes" });
     } finally {
-      if (botId) await api("DELETE", `/api/bots/${botId}`);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } });
       boxRouteCalls.length = 0;
     }
@@ -2694,7 +2715,7 @@ describe("harness HTTP API", () => {
       await api("PATCH", `/api/team-computers/${requestId}`, { section: null, acknowledgeSharedAccess: true }).catch(() => undefined);
       managedBoxRows = [];
       managedBoxCreatedIds.clear();
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       managedBoxCreateMode = "refuse";
       managedBoxCreateId = "bx_cdefghjk";
@@ -2824,7 +2845,7 @@ describe("harness HTTP API", () => {
       managedBoxRows = [];
       managedBoxCreatedIds.clear();
       if (roomId) await api("DELETE", `/api/groups/${roomId}`).catch(() => undefined);
-      for (const botId of botIds) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      for (const botId of botIds) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       managedBoxCreateMode = "refuse";
       managedBoxCreateId = "bx_cdefghjk";
@@ -2890,7 +2911,7 @@ describe("harness HTTP API", () => {
     } finally {
       if (botId) await api("POST", `/api/bots/${botId}/interrupt`, {}).catch(() => undefined);
       managedBoxRows = [];
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } });
       boxRouteCalls.length = 0;
       rmSync(fakeClaudeDump, { force: true });
@@ -2947,7 +2968,7 @@ describe("harness HTTP API", () => {
       if (roomId) await api("POST", `/api/groups/${roomId}/interrupt`, {}).catch(() => undefined);
       managedBoxRows = [];
       if (roomId) await api("DELETE", `/api/groups/${roomId}`).catch(() => undefined);
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } });
       boxRouteCalls.length = 0;
       rmSync(fakeClaudeDump, { force: true });
@@ -3076,7 +3097,7 @@ describe("harness HTTP API", () => {
       managedBoxStopDelayMs = 0;
       managedBoxRows = [];
       managedBoxDeleteConfirmations.length = 0;
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } });
       boxRouteCalls.length = 0;
     }
@@ -3108,7 +3129,7 @@ describe("harness HTTP API", () => {
       managedBoxListStatus = 200;
       managedBoxRows = [];
       managedBoxDeleteConfirmations.length = 0;
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       boxRouteCalls.length = 0;
     }
@@ -3178,7 +3199,7 @@ describe("harness HTTP API", () => {
       await api("POST", `/api/bots/${chief.id}/interrupt`, {}).catch(() => undefined);
       const removed = await api("DELETE", `/api/bots/${target.id}`).catch(() => undefined);
       targetDeleted = removed?.status === 200 || removed?.status === 404;
-      if (!targetDeleted) await api("DELETE", `/api/bots/${target.id}`).catch(() => undefined);
+      if (!targetDeleted) await removeBot(target.id);
       // Clear the Box token BEFORE deleting the Chief. interruptTurn is
       // asynchronous, so the Chief can still be busy here, and while a token
       // is configured a busy bot's delete is refused with 409 (index.ts:6673).
@@ -3193,7 +3214,7 @@ describe("harness HTTP API", () => {
       await expect.poll(async () =>
         (await api("GET", "/api/bots?messages=0")).body.bots.find((bot: { id: string }) => bot.id === chief.id)?.busy !== true,
       { timeout: 15_000 }).toBe(true);
-      await api("DELETE", `/api/bots/${chief.id}`).catch(() => undefined);
+      await removeBot(chief.id);
       // Assert the cleanup actually happened rather than trusting the catch.
       expect((await api("GET", "/api/bots")).body.bots.some((bot: { id: string }) => bot.id === chief.id)).toBe(false);
       boxRouteCalls.length = 0;
@@ -3256,7 +3277,7 @@ describe("harness HTTP API", () => {
       managedBoxRejectedTokens.clear();
       managedBoxRows = [];
       managedBoxDeleteConfirmations.length = 0;
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       boxRouteCalls.length = 0;
     }
@@ -3339,8 +3360,8 @@ describe("harness HTTP API", () => {
       managedBoxListGate = null;
       managedBoxRows = [];
       if (roomId) await api("DELETE", `/api/groups/${roomId}`).catch(() => undefined);
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
-      if (guardBotId) await api("DELETE", `/api/bots/${guardBotId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
+      if (guardBotId) await removeBot(guardBotId);
       await api("PATCH", "/api/config", { localVm: { mode: "shared", maxInstances: 2 } }).catch(() => undefined);
       await api("PUT", "/api/config", { box: { token: "" } });
       boxRouteCalls.length = 0;
@@ -3418,8 +3439,8 @@ describe("harness HTTP API", () => {
       managedBoxCreateMode = "success";
       managedBoxRows = [];
       managedBoxCreatedIds.clear();
-      if (ambiguousBotId) await api("DELETE", `/api/bots/${ambiguousBotId}`).catch(() => undefined);
-      if (rememberedBotId) await api("DELETE", `/api/bots/${rememberedBotId}`).catch(() => undefined);
+      if (ambiguousBotId) await removeBot(ambiguousBotId);
+      if (rememberedBotId) await removeBot(rememberedBotId);
       managedBoxCreateMode = "refuse";
       managedBoxCreateId = "bx_cdefghjk";
       managedBoxCreateName = "";
@@ -3467,7 +3488,7 @@ describe("harness HTTP API", () => {
       managedBoxCreateName = "";
       managedBoxRows = [];
       managedBoxCreatedIds.clear();
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       boxRouteCalls.length = 0;
     }
@@ -3498,7 +3519,7 @@ describe("harness HTTP API", () => {
       expect(bots.find((bot: { id: string }) => bot.id === workB.id).chiefOfStaff).toBe(true);
       expect(bots.find((bot: { id: string }) => bot.id === personal.id).chiefOfStaff).toBe(false);
     } finally {
-      for (const bot of [workA, workB, personal]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [workA, workB, personal]) await removeBot(bot.id);
     }
   });
 
@@ -3543,7 +3564,7 @@ describe("harness HTTP API", () => {
         stream.close();
       }
     } finally {
-      for (const bot of [incumbent, incoming, teammate]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [incumbent, incoming, teammate]) await removeBot(bot.id);
     }
   });
 
@@ -3577,7 +3598,7 @@ describe("harness HTTP API", () => {
       expect(Boolean(bots.find((bot: { id: string }) => bot.id === teammate.id)?.chiefOfStaff))
         .toBe(false);
     } finally {
-      for (const bot of [incumbent, incoming, teammate]) await api("DELETE", `/api/bots/${bot.id}`);
+      for (const bot of [incumbent, incoming, teammate]) await removeBot(bot.id);
     }
   });
 
@@ -3608,8 +3629,8 @@ describe("harness HTTP API", () => {
       const bots = (await api("GET", "/api/bots")).body.bots;
       expect(bots.find((bot: { id: string }) => bot.id === visible.id)?.section).toBe("Original");
     } finally {
-      await api("DELETE", `/api/bots/${visible.id}`);
-      await api("DELETE", `/api/bots/${hidden.id}`);
+      await removeBot(visible.id);
+      await removeBot(hidden.id);
     }
   });
 
@@ -3694,8 +3715,8 @@ describe("harness HTTP API", () => {
       });
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${archived.id}`);
-      await api("DELETE", `/api/bots/${active.id}`);
+      await removeBot(archived.id);
+      await removeBot(active.id);
     }
   });
 
@@ -3829,7 +3850,7 @@ describe("harness HTTP API", () => {
       if (room) await api("POST", `/api/groups/${room.id}/interrupt`, {}).catch(() => undefined);
       if (room) await api("DELETE", `/api/groups/${room.id}`).catch(() => undefined);
       await api("POST", `/api/bots/${bot.id}/interrupt`, {}).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -4002,7 +4023,7 @@ describe("harness HTTP API", () => {
       });
     } finally {
       stream.close();
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -4058,7 +4079,7 @@ describe("harness HTTP API", () => {
       expect(afterClear.modelSelection).toEqual(selection);
     } finally {
       stream.close();
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -4101,7 +4122,7 @@ describe("harness HTTP API", () => {
       expect(after.modelSelection).toEqual(selection);
       expect(after.autoApprove).toBeUndefined();
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -4140,7 +4161,7 @@ describe("harness HTTP API", () => {
         );
         return current?.busy;
       }, { timeout: 5_000 }).toBe(false);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -4435,7 +4456,7 @@ describe("harness HTTP API", () => {
         expect((await api("DELETE", `/api/groups/${room.id}`)).status).toBe(200);
       }
       for (const bot of [seed.body, ...created.body.bots, ...named.body.bots]) {
-        await api("DELETE", `/api/bots/${bot.id}`);
+        await removeBot(bot.id);
       }
     } finally {
       stream.close();
@@ -4470,7 +4491,7 @@ describe("harness HTTP API", () => {
       expect(after.groups).toEqual(before.groups);
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      for (const id of [original.id, ...copies]) await api("DELETE", `/api/bots/${id}`);
+      for (const id of [original.id, ...copies]) await removeBot(id);
     }
   });
 
@@ -4608,7 +4629,7 @@ describe("harness HTTP API", () => {
 
     await api("DELETE", `/api/routines/${installed.body.routines[0].id}`);
     await api("DELETE", `/api/groups/${installed.body.groups[0].id}`);
-    for (const bot of installed.body.bots) await api("DELETE", `/api/bots/${bot.id}`);
+    for (const bot of installed.body.bots) await removeBot(bot.id);
   });
 
   it("the scout reads a folder, proposes an importable team, and creates nothing until the human imports", async () => {
@@ -4649,7 +4670,7 @@ describe("harness HTTP API", () => {
     expect(imported.body.bots).toHaveLength(3);
 
     expect((await api("DELETE", `/api/groups/${imported.body.group.id}`)).status).toBe(200);
-    for (const bot of imported.body.bots) await api("DELETE", `/api/bots/${bot.id}`);
+    for (const bot of imported.body.bots) await removeBot(bot.id);
     rmSync(folder, { recursive: true, force: true });
   });
 
@@ -4853,7 +4874,7 @@ describe("harness HTTP API", () => {
       }).toBe(true);
     } finally {
       stream?.close();
-      if (botId) await api("DELETE", `/api/bots/${botId}`);
+      if (botId) await removeBot(botId);
       // the token is write-only, so there is no prior value to restore —
       // leave the box unconfigured rather than half-set for whatever runs next
       await api("PUT", "/api/config", { box: { token: "" } });
@@ -4984,7 +5005,7 @@ describe("harness HTTP API", () => {
     } finally {
       if (botId) await api("POST", `/api/bots/${botId}/interrupt`, {}).catch(() => undefined);
       stream?.close();
-      if (botId) await api("DELETE", `/api/bots/${botId}`);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } });
       rmSync(fakeClaudeDump, { force: true });
     }
@@ -5352,7 +5373,7 @@ describe("harness HTTP API", () => {
     } finally {
       stream?.close();
       if (routineId) await api("DELETE", `/api/routines/${routineId}`);
-      if (botId) await api("DELETE", `/api/bots/${botId}`);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } });
     }
   });
@@ -5378,7 +5399,7 @@ describe("harness HTTP API", () => {
       expect(bot.messages[0].text).toContain("Pathfinder");
       expect(bot.messages[0].text).not.toContain("Maus");
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5424,7 +5445,7 @@ describe("harness HTTP API", () => {
         requireAvailableModel: true,
       })).status).toBe(400);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5448,7 +5469,7 @@ describe("harness HTTP API", () => {
       );
       expect(reread.modelSelection).toEqual(bot.modelSelection);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5490,7 +5511,7 @@ describe("harness HTTP API", () => {
       )?.tasks.find((task: { threadId: string }) => task.threadId === runningTask)?.busy).toBe(false);
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`, { threadId: runningTask });
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5536,7 +5557,7 @@ describe("harness HTTP API", () => {
     } finally {
       held.close();
       await api("POST", `/api/bots/${bot.id}/interrupt`, { threadId: before.threadId });
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5577,7 +5598,7 @@ describe("harness HTTP API", () => {
         (candidate: { id: string }) => candidate.id === room.id,
       )?.working, { timeout: 5_000 }).toBe(false);
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5607,7 +5628,7 @@ describe("harness HTTP API", () => {
       }
     } finally {
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5652,7 +5673,7 @@ describe("harness HTTP API", () => {
       await api("POST", `/api/groups/${room.id}/interrupt`, {});
       await api("DELETE", `/api/groups/${room.id}`);
       await api("POST", `/api/bots/${bot.id}/interrupt`, {});
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5750,7 +5771,7 @@ describe("harness HTTP API", () => {
     await api("PATCH", `/api/bots/${bot.id}`, { computer: "off" });
     const back = await api("PATCH", `/api/bots/${bot.id}`, { computer: "local" });
     expect(back.status).toBe(400);
-    await api("DELETE", `/api/bots/${bot.id}`);
+    await removeBot(bot.id);
   });
 
   it("stores safe approval levels and refuses trusted modes over HTTP", async () => {
@@ -5789,7 +5810,7 @@ describe("harness HTTP API", () => {
       );
       expect(stored).toMatchObject({ approvalMode: "ask", autoApprove: false });
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5811,7 +5832,7 @@ describe("harness HTTP API", () => {
       );
       expect(stored.approvalMode).toBeUndefined();
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -5824,7 +5845,7 @@ describe("harness HTTP API", () => {
     const ask = await api("PATCH", `/api/bots/${bot.id}`, { autoApprove: false });
     expect(ask.status).toBe(200);
     expect(ask.body.bot).toMatchObject({ approvalMode: "ask", autoApprove: false });
-    await api("DELETE", `/api/bots/${bot.id}`);
+    await removeBot(bot.id);
   });
 
   it("refuses approval-level changes while a bot is working", async () => {
@@ -5856,7 +5877,7 @@ describe("harness HTTP API", () => {
         const state = (await api("GET", "/api/bots?messages=0")).body;
         return state.bots.find((candidate: { id: string }) => candidate.id === bot.id)?.busy;
       }, { timeout: 5_000 }).toBeFalsy();
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -5878,7 +5899,7 @@ describe("harness HTTP API", () => {
       expect(bot.messages[0].text).toBe("Hi, I'm Fresh. What would you like me to do?");
       expect(bot.messages.some((m: { kind: string }) => m.kind === "options")).toBe(false);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6042,7 +6063,7 @@ describe("harness HTTP API", () => {
       const disk = JSON.parse(readFileSync(join(home, ".openmausbot", "config.json"), "utf8"));
       expect(disk.tts).toMatchObject({ provider, voice: "" });
     } finally {
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { tts: { provider: "elevenlabs", voice: "" } }).catch(() => undefined);
     }
   });
@@ -6078,7 +6099,7 @@ describe("harness HTTP API", () => {
         rmSync(botsPath, { recursive: true, force: true });
         renameSync(backupPath, botsPath);
       }
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { tts: { provider: "elevenlabs", voice: "" } }).catch(() => undefined);
     }
   });
@@ -6111,7 +6132,7 @@ describe("harness HTTP API", () => {
       expect((await api("PUT", "/api/config", { box: { token: "" } })).status).toBe(200);
     } finally {
       managedBoxRows = [];
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
     }
   });
@@ -6147,7 +6168,7 @@ describe("harness HTTP API", () => {
       }
     } finally {
       managedBoxRejectedTokens.clear();
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       managedBoxCreateMode = "refuse";
       managedBoxCreateId = "bx_cdefghjk";
       managedBoxCreateName = "";
@@ -6189,7 +6210,7 @@ describe("harness HTTP API", () => {
       managedBoxCreateName = "";
       managedBoxRows = [];
       managedBoxCreatedIds.clear();
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       boxRouteCalls.length = 0;
     }
@@ -6274,7 +6295,7 @@ describe("harness HTTP API", () => {
       await api("POST", `/api/bots/${bot.id}/interrupt`, {}).catch(() => {});
       await idle();
       managedBoxRows = [];
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => {});
+      await removeBot(bot.id);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => {});
       rmSync(fakeClaudeDump, { force: true });
       boxPromptBodies.length = 0;
@@ -6304,7 +6325,7 @@ describe("harness HTTP API", () => {
       expect((await api("DELETE", `/api/bots/${bot.id}`)).status).toBe(200);
       botId = "";
     } finally {
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
     }
   });
@@ -6345,7 +6366,7 @@ describe("harness HTTP API", () => {
       managedBoxCreateName = "";
       managedBoxRows = [];
       managedBoxCreatedIds.clear();
-      if (botId) await api("DELETE", `/api/bots/${botId}`).catch(() => undefined);
+      if (botId) await removeBot(botId);
       await api("PUT", "/api/config", { box: { token: "" } }).catch(() => undefined);
       boxRouteCalls.length = 0;
     }
@@ -6479,7 +6500,7 @@ describe("harness HTTP API", () => {
         const state = (await api("GET", "/api/bots?messages=0")).body;
         return state.bots.find((candidate: { id: string }) => candidate.id === bot.id)?.busy;
       }, { timeout: 5_000 }).toBeFalsy();
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
       await api("PATCH", "/api/config", { language: "" }).catch(() => undefined);
     }
   });
@@ -6580,7 +6601,7 @@ describe("harness HTTP API", () => {
     } finally {
       for (const conn of conns) conn.destroy();
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6602,7 +6623,7 @@ describe("harness HTTP API", () => {
       expect(system).toContain("skill_manage");
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6624,7 +6645,7 @@ describe("harness HTTP API", () => {
       expect(system).toContain("--- BEGIN STANDING INSTRUCTIONS (SOUL.md, 28 bytes) ---\nFile bugs. Never file noise.\n--- END STANDING INSTRUCTIONS ---");
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6666,7 +6687,7 @@ describe("harness HTTP API", () => {
       expect(dispatched).not.toContain("browser_navigate");
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
       await api("PATCH", "/api/config", { features: { browser: false } });
     }
   });
@@ -6702,7 +6723,7 @@ describe("harness HTTP API", () => {
       expect((await api("GET", `/api/bots/${bot.id}/system-prompt`)).body.sections.map((s: { id: string }) => s.id)).not.toContain("setup");
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6737,7 +6758,7 @@ describe("harness HTTP API", () => {
       expect(userText).not.toContain("/setup");
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6760,7 +6781,7 @@ describe("harness HTTP API", () => {
       expect(bots.find((candidate: { id: string }) => candidate.id === bot.id)?.soulDrift).toBe(true);
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -6856,7 +6877,7 @@ describe("harness HTTP API", () => {
       expect(listing.status).toBe(403);
       expect((await listing.json() as { error: string }).error).toBe("skill authoring is not enabled in Settings");
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
 
     await api("PATCH", "/api/config", { features: { skillAuthoring: true, showToolCalls: false } });
@@ -6886,7 +6907,7 @@ describe("harness HTTP API", () => {
     } finally {
       await api("POST", `/api/groups/${room.id}/interrupt`, {}).catch(() => undefined);
       await api("DELETE", `/api/groups/${room.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -6937,8 +6958,8 @@ describe("harness HTTP API", () => {
       expect((await api("PATCH", "/api/calendar-calls/missing", { name: "Nope" })).status).toBe(404);
     } finally {
       if (callId) await api("DELETE", `/api/calendar-calls/${callId}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${first.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${second.id}`).catch(() => undefined);
+      await removeBot(first.id);
+      await removeBot(second.id);
     }
   });
 
@@ -7010,8 +7031,8 @@ describe("harness HTTP API", () => {
         await api("POST", `/api/groups/${roomId}/interrupt`, {}).catch(() => undefined);
         await api("DELETE", `/api/groups/${roomId}`).catch(() => undefined);
       }
-      await api("DELETE", `/api/bots/${first.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${second.id}`).catch(() => undefined);
+      await removeBot(first.id);
+      await removeBot(second.id);
     }
   });
 
@@ -7048,7 +7069,7 @@ describe("harness HTTP API", () => {
     } finally {
       if (runId) await api("POST", `/api/routine-runs/${runId}/cancel`).catch(() => undefined);
       await api("DELETE", `/api/routines/${routine.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -7114,7 +7135,7 @@ describe("harness HTTP API", () => {
       if (routineId) await api("DELETE", `/api/routines/${routineId}`).catch(() => undefined);
       await api("POST", `/api/groups/${room.id}/interrupt`, {}).catch(() => undefined);
       await api("DELETE", `/api/groups/${room.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -7157,7 +7178,7 @@ describe("harness HTTP API", () => {
       if (room) await api("POST", `/api/groups/${room.id}/interrupt`, {}).catch(() => undefined);
       await api("PATCH", "/api/config", { features: { browser: false }, browserProfiles: [] }).catch(() => undefined);
       if (room) await api("DELETE", `/api/groups/${room.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -7224,7 +7245,7 @@ describe("harness HTTP API", () => {
       else await api("POST", `/api/bots/${bot.id}/interrupt`, {}).catch(() => undefined);
       await api("PATCH", "/api/config", { features: { browser: false }, browserProfiles: [] }).catch(() => undefined);
       if (room) await api("DELETE", `/api/groups/${room.id}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   }, 60_000);
   it("reconciles a committed crash-stale bot reference before ACK and profile-id reuse", async () => {
@@ -7358,7 +7379,7 @@ describe("harness HTTP API", () => {
       const state = (await api("GET", "/api/bots")).body;
       expect(state.bots.find((candidate: { id: string }) => candidate.id === bot.id)).not.toHaveProperty("browserProfile");
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
       await api("PATCH", "/api/config", { browserProfiles: [] }).catch(() => undefined);
     }
   });
@@ -7393,7 +7414,7 @@ describe("harness HTTP API", () => {
         const state = (await api("GET", "/api/bots")).body;
         return state.bots.find((candidate: { id: string }) => candidate.id === bot.id)?.busy;
       }, { timeout: 5_000 }).toBeFalsy();
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
       await api("PATCH", "/api/config", { browserProfiles: [] }).catch(() => undefined);
     }
   });
@@ -7439,7 +7460,7 @@ describe("harness HTTP API", () => {
         const state = (await api("GET", "/api/bots")).body;
         return state.bots.find((candidate: { id: string }) => candidate.id === bot.id)?.busy;
       }, { timeout: 5_000 }).toBeFalsy();
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
       await api("PATCH", "/api/config", { browserProfiles: [] }).catch(() => undefined);
     }
   });
@@ -7530,7 +7551,7 @@ describe("harness HTTP API", () => {
       rmSync(fakeDockerFixture, { force: true });
       rmSync(fakeDockerLog, { force: true });
       await api("PATCH", "/api/config", { localVm: { mode: "shared", maxInstances: 2 } }).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
     }
   });
 
@@ -7568,7 +7589,7 @@ describe("harness HTTP API", () => {
       rmSync(fakeDockerFixture, { force: true });
       rmSync(fakeDockerLog, { force: true });
       if (workspacePath) rmSync(workspacePath, { recursive: true, force: true });
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
       await api("PATCH", "/api/config", { localVm: { mode: "shared", maxInstances: 2 } }).catch(() => undefined);
     }
   });
@@ -7597,7 +7618,7 @@ describe("harness HTTP API", () => {
     } finally {
       rmSync(fakeVpsFixture, { force: true });
       rmSync(fakeDockerLog, { force: true });
-      await api("DELETE", `/api/bots/${bot.id}`).catch(() => undefined);
+      await removeBot(bot.id);
       await api("PUT", "/api/config", { vps: { sshAlias: "" } }).catch(() => undefined);
     }
   });
@@ -7646,7 +7667,7 @@ describe("harness HTTP API", () => {
         };
       }, { timeout: 5_000 }).toEqual({ botBusy: false, roomBusyBotId: null });
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${botId}`);
+      await removeBot(botId);
       await api("PUT", "/api/config", { rooms: { turnTimeoutMinutes: 5 } });
     }
   });
@@ -7709,8 +7730,8 @@ describe("harness HTTP API", () => {
     } finally {
       await api("POST", `/api/groups/${room.id}/interrupt`, { threadId: room.threadId });
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${first.id}`);
-      await api("DELETE", `/api/bots/${second.id}`);
+      await removeBot(first.id);
+      await removeBot(second.id);
     }
   });
 
@@ -7825,8 +7846,8 @@ describe("harness HTTP API", () => {
         return state.groups.find((group: { id: string }) => group.id === room.id)?.working;
       }, { timeout: 5_000 }).toBe(false);
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${first.id}`);
-      await api("DELETE", `/api/bots/${second.id}`);
+      await removeBot(first.id);
+      await removeBot(second.id);
     }
   });
 
@@ -8043,7 +8064,7 @@ describe("harness HTTP API", () => {
       expect((await api("GET", `/api/threads/${bot.threadId}/messages`)).body.messages.some(
         (message: { routineRun?: { runId?: string } }) => message.routineRun?.runId === movedRun.body.run.id,
       )).toBe(false);
-      await api("DELETE", `/api/bots/${teammate.id}`);
+      await removeBot(teammate.id);
 
       // The initial fixture turn is deliberately hung. Once it is stopped,
       // force a deterministic dispatch failure by choosing the configured
@@ -8259,7 +8280,7 @@ describe("harness HTTP API", () => {
       if (orphanRoutineId) await api("DELETE", `/api/routines/${orphanRoutineId}`);
       if (routineId) await api("DELETE", `/api/routines/${routineId}`);
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -8344,7 +8365,7 @@ describe("harness HTTP API", () => {
       }).toEqual(["card-shown:profile", "user-approved:user"]);
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -8410,8 +8431,8 @@ describe("harness HTTP API", () => {
       expect(await botTitle(b.id)).toBe("Lead scout");
     } finally {
       await api("POST", `/api/bots/${a.id}/interrupt`);
-      await api("DELETE", `/api/bots/${a.id}`);
-      await api("DELETE", `/api/bots/${b.id}`);
+      await removeBot(a.id);
+      await removeBot(b.id);
     }
   });
 
@@ -8446,8 +8467,8 @@ describe("harness HTTP API", () => {
       }
     } finally {
       held?.close();
-      await api("DELETE", `/api/bots/${sender.id}`);
-      await api("DELETE", `/api/bots/${victim.id}`);
+      await removeBot(sender.id);
+      await removeBot(victim.id);
     }
   });
 
@@ -8697,7 +8718,7 @@ describe("harness HTTP API", () => {
       expect(inventory.staged).toEqual([]);
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -8782,7 +8803,7 @@ describe("harness HTTP API", () => {
       const deniesApps = overview.body.wont.includes("Has no connected apps.");
       expect(claimsApps && deniesApps).toBe(false);
     } finally {
-      await api("DELETE", `/api/bots/${kiwi.id}`);
+      await removeBot(kiwi.id);
     }
   });
 
@@ -8827,7 +8848,7 @@ describe("harness HTTP API", () => {
       expect((await api("GET", `${card(other, "status")}?threadId=${bot.threadId}`)).body.connected).toBe(false);
     } finally {
       connectorAccounts = [];
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -8850,7 +8871,7 @@ describe("harness HTTP API", () => {
       expect(rejected.body.error).toMatch(/connected apps are not enabled/i);
     } finally {
       held?.close();
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9025,7 +9046,7 @@ describe("harness HTTP API", () => {
         stream.close();
       }
     } finally {
-      await api("DELETE", `/api/bots/${botId}`);
+      await removeBot(botId);
     }
   });
 
@@ -9071,8 +9092,8 @@ describe("section context API", () => {
       expect(cleared.body).toMatchObject({ text: "", updatedAt: null });
       expect((await api("GET", "/api/section-context?section=Work")).body.text).toBe("");
     } finally {
-      await api("DELETE", `/api/bots/${work.id}`);
-      await api("DELETE", `/api/bots/${personal.id}`);
+      await removeBot(work.id);
+      await removeBot(personal.id);
     }
   });
 
@@ -9173,7 +9194,7 @@ describe("bot memory API", () => {
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
       await api("DELETE", `/api/groups/${room.id}`);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9259,8 +9280,8 @@ describe("bot memory API", () => {
     } finally {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
       await api("POST", `/api/bots/${other.id}/interrupt`);
-      await api("DELETE", `/api/bots/${bot.id}`);
-      await api("DELETE", `/api/bots/${other.id}`);
+      await removeBot(bot.id);
+      await removeBot(other.id);
     }
   });
 
@@ -9282,7 +9303,7 @@ describe("bot memory API", () => {
       expect(soon.body).toEqual({ hold: true, reason: "due", at });
     } finally {
       if (routineId) await api("DELETE", `/api/routines/${routineId}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9337,7 +9358,7 @@ describe("bot memory API", () => {
     } finally {
       if (missedRoutineId) await api("DELETE", `/api/routines/${missedRoutineId}`).catch(() => undefined);
       if (failingRoutineId) await api("DELETE", `/api/routines/${failingRoutineId}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9413,8 +9434,8 @@ describe("bot memory API", () => {
       await api("POST", `/api/bots/${bot.id}/interrupt`);
       await api("POST", `/api/bots/${other.id}/interrupt`);
       if (groupId) await api("DELETE", `/api/groups/${groupId}`).catch(() => undefined);
-      await api("DELETE", `/api/bots/${bot.id}`);
-      await api("DELETE", `/api/bots/${other.id}`);
+      await removeBot(bot.id);
+      await removeBot(other.id);
     }
   });
 
@@ -9427,7 +9448,7 @@ describe("bot memory API", () => {
       expect(fresh.body).toMatchObject({ text: "", truncated: false, topics: [], logs: [] });
       expect((await api("GET", "/api/bots/does-not-exist/memory")).status).toBe(404);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9451,7 +9472,7 @@ describe("bot memory API", () => {
       expect((await api("GET", `/api/bots/${bot.id}/memory`)).body.text).toBe("# Memory\n- prefers pnpm\n");
       expect((await api("PUT", "/api/bots/does-not-exist/memory", { text: "x" })).status).toBe(404);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9478,7 +9499,7 @@ describe("bot memory API", () => {
       expect((await api("GET", `/api/bots/${bot.id}/memory/topics/missing.md`)).status).toBe(404);
       expect((await api("GET", "/api/bots/does-not-exist/memory/topics/deploys.md")).status).toBe(404);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9510,7 +9531,7 @@ describe("bot memory API", () => {
       // malformed percent-encoding is a clean 400, not a crash
       expect((await rawGet(`/api/bots/${bot.id}/memory/topics/%zz.md`)).status).toBe(400);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9535,7 +9556,7 @@ describe("bot memory API", () => {
       const over = await api("PATCH", `/api/bots/${bot.id}`, { soul: "x".repeat(24_001) });
       expect(over).toEqual({ status: 400, body: { error: "standing instructions must be at most 24000 bytes" } });
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
     expect(existsSync(join(home, ".openmausbot", "bots", bot.id))).toBe(false);
   });
@@ -9562,7 +9583,7 @@ describe("bot memory API", () => {
         rmSync(botsFile, { recursive: true, force: true });
         writeFileSync(botsFile, saved);
       }
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9611,7 +9632,7 @@ describe("bot memory API", () => {
       expect((await api("POST", `/api/bots/${bot.id}/soul/apply-file`, { fileText: "x".repeat(24_001), expectedRevision: current.revision })).status).toBe(400);
       expect((await api("GET", "/api/bots/does-not-exist/soul")).status).toBe(404);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9636,7 +9657,7 @@ describe("bot memory API", () => {
       expect(fresh.status).toBe(200);
       expect(fresh.body.bot.soul).toBe("B");
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9720,7 +9741,7 @@ describe("bot memory API", () => {
       expect((await api("POST", `/api/bots/${bot.id}/soul/discard-file`, { fileText: "unseen edit", expectedRevision: next.revision })).status).toBe(500);
     } finally {
       held?.close();
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9760,7 +9781,7 @@ describe("bot memory API", () => {
       expect(computerSection.text).not.toContain("At a sign-in, password, MFA, CAPTCHA");
       expect((await api("GET", "/api/bots/does-not-exist/system-prompt")).status).toBe(404);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 
@@ -9794,7 +9815,7 @@ describe("bot memory API", () => {
 
       expect((await api("GET", "/api/bots/does-not-exist/overview")).status).toBe(404);
     } finally {
-      await api("DELETE", `/api/bots/${bot.id}`);
+      await removeBot(bot.id);
     }
   });
 });
