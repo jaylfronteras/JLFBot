@@ -8,7 +8,7 @@
 
 ## Why
 
-JLFBot is a private, local-first personal AI agent workspace, derived from the Apache-2.0 OpenMausBot open-source core and inspired by **Grok Bot** —
+JLFBot is a private, local-first personal AI agent workspace, a personal modified fork of an Apache-2.0 open-source project (see [NOTICE](NOTICE)) and inspired by **Grok Bot** —
 it keeps the idea (AI as a *messaging app*: a roster of bots you chat with, each with its own personality,
 memory of its thread, model, computer, and apps) and rebuilds it open, local-first, and on the agents you
 already have:
@@ -17,7 +17,7 @@ already have:
   — your existing logins and subscriptions, no new accounts, no proxy in the middle. Point any engine at a
   custom CLI binary (a versioned build or wrapper) in **Settings → Engines**.
 - **Local first.** One small harness server on `127.0.0.1` owns every agent process. Transcripts, keys, and
-  events live in `~/.openmausbot`, not a cloud.
+  events live in `~/.jlfbot`, not a cloud.
 - **Agents with hands.** Each bot can use a cloud Linux desktop, an isolated Local VM, or—where the platform
   safety boundary is currently certified—your own computer, plus 500+ apps through Composio. Host control is
   available on macOS and Ubuntu Xorg after explicit opt-in. Ubuntu Wayland host control remains disabled while
@@ -102,12 +102,12 @@ channel and its bots under a named context, then rename it or change its members
 
 ### 📦 Install a complete team from one Markdown file
 
-Browse outcome-driven teams on [BotMRR](https://botmrr.io), then choose **Add to OpenMausBot**. The app
+Browse outcome-driven teams on [BotMRR](https://botmrr.io), then choose **Add to JLFBot**. The app
 opens a review screen before creating the bots, Chief of Staff, channels, playbooks, connector checklist,
 and suggested routines. You can also import the same `.md` file from disk or paste its public GitHub URL
 in **Teams → Import**.
 
-The format stays portable: OpenMausBot reads the structured YAML frontmatter for a reliable one-click
+The format stays portable: JLFBot reads the structured YAML frontmatter for a reliable one-click
 install, while Grok, Claude, ChatGPT, and people can follow the ordinary Markdown playbook. Connections
 remain off until you approve them, routines arrive paused, and packages never carry credentials,
 conversations, permissions, memory, or computer access. Browse the
@@ -131,7 +131,7 @@ quality varies outside xAI’s [officially supported languages](https://docs.x.a
 This adds speech synthesis to the existing call flow; microphone transcription remains unchanged.
 
 **Also in the box:** streaming replies with tool-run activity chips · native macOS dictation from the
-composer mic (on-device Apple speech recognition — desktop app) · SupaMaus cursor mascots with role-aware
+composer mic (on-device Apple speech recognition — desktop app) · JLFBot cursor mascots with role-aware
 expressions · screenshots of the bot's work folded into the transcript.
 
 ## Powered By
@@ -210,20 +210,41 @@ It does **not** expose approval grants, deletion, arbitrary settings, credential
 
 See [MCP server setup and tool reference](docs/mcp-server.md).
 
-## Quick start
+## Quick start (personal use)
 
-**Released builds ([latest release](https://github.com/milind-soni/OpenMausBot/releases/latest)):** the harness server is embedded, so no separate server setup is required.
+JLFBot has no published release channel; build and run it from your own checkout.
 
-| | Download | Install |
-|---|---|---|
-| **macOS** (Apple silicon) | [OpenMausBot.dmg](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot.dmg) | Drag it to Applications, open it. Signed & notarized. |
-| **macOS** (Intel) | [OpenMausBot-intel.dmg](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot-intel.dmg) | Same app, built for Intel Macs. Signed & notarized. |
-| **Windows** (x64) | [OpenMausBot-setup.exe](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot-setup.exe) | Run it — one-click, per-user, no admin rights. The installer isn't code-signed yet, so SmartScreen shows "unknown publisher": **More info → Run anyway**. |
-| **Ubuntu 24.04** (x64) | [OpenMausBot-amd64.deb](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot-amd64.deb) · [OpenMausBot.AppImage](https://github.com/milind-soni/OpenMausBot/releases/latest/download/OpenMausBot.AppImage) | Install the `.deb` with APT (recommended), or make the AppImage executable and run it. Beta; GNOME is the supported desktop. |
+```sh
+# 1. Install (Node 24+, pnpm via corepack)
+git clone https://github.com/jaylfronteras/JLFBot && cd JLFBot
+corepack enable            # provides the pnpm version pinned in package.json
+pnpm install
+cp .env.example .env       # optional; every setting has a default
 
-See the [Ubuntu Desktop guide](docs/linux-desktop.md) for installation, capabilities, and troubleshooting.
-Any desktop build can also pair as a client to another Windows, macOS, or Ubuntu host over Tailscale; see [desktop-to-desktop companion mode](docs/desktop-companion.md).
+# 2. Check and build
+pnpm typecheck && pnpm lint
+pnpm build                 # renderer + typecheck
+pnpm build:server          # bundled server → dist-server/
 
+# 3. Run (two terminals, plus an optional desktop shell)
+pnpm dev:server            # harness server → http://127.0.0.1:8799
+pnpm dev                   # web UI → http://127.0.0.1:5199
+pnpm dev:desktop           # Electron window (keep the two above running)
+
+# Headless / server-only
+node dist-server/cli.js serve   # or: pnpm jlfbot serve
+```
+
+Data lives in `~/.jlfbot` (override with `JLFBOT_DATA_DIR`). If an older `~/.openmausbot`
+folder exists and `~/.jlfbot` does not, JLFBot keeps using the old folder in place; to move it,
+quit JLFBot and rename the folder.
+
+Local installers: `pnpm package:linux`, `pnpm package:win` or `pnpm package:mac` (unsigned unless
+you add your own signing credentials). Hosted extras from upstream (managed Composio broker, phone
+relay control plane, organisation portal, usage analytics) are disabled; see `cloudflare/` to
+self-host the broker or control plane and set `JLFBOT_COMPOSIO_BROKER_URL` / `JLFBOT_CONTROL_PLANE_URL`.
+
+See the [Ubuntu Desktop guide](docs/linux-desktop.md) for Linux specifics.
 
 **From source:**
 
@@ -262,9 +283,9 @@ The Linux preview is user-initiated and never enables local bot control or Auto 
 Driver 0.19.3 runtime starts only after explicit opt-in and without its full-screen cursor overlay. On Wayland the
 app never starts it and clears legacy opt-ins while that real-seat safety gate remains unresolved. Chat, preview,
 Cloud, and Local VM remain available on both sessions. See the [Ubuntu Desktop guide](docs/linux-desktop.md) and tracking
-issues [#29](https://github.com/milind-soni/OpenMausBot/issues/29),
-[#345](https://github.com/milind-soni/OpenMausBot/issues/345), and
-[#113](https://github.com/milind-soni/OpenMausBot/issues/113).
+issues [#29](https://github.com/jaylfronteras/JLFBot/issues/29),
+[#345](https://github.com/jaylfronteras/JLFBot/issues/345), and
+[#113](https://github.com/jaylfronteras/JLFBot/issues/113).
 
 The Linux packager downloads only the tag-pinned upstream archive during the build, verifies its size, SHA-256,
 complete member allowlist, and inner executable hashes, then packages only the CLI and cursor-theme sidecar. The
@@ -277,7 +298,7 @@ in the sidebar footer) when you want to enable its integration:
 
 | Credential | What it enables | Where to get it |
 |---|---|---|
-| Composio project key (`ak_…`) | Connect Gmail, GitHub, Slack, Notion, and other apps to your bots | [OpenMausBot Composio setup](docs/composio.md) |
+| Composio project key (`ak_…`) | Connect Gmail, GitHub, Slack, Notion, and other apps to your bots | [JLFBot Composio setup](docs/composio.md) |
 | Box API key | Give bots an isolated remote Linux computer with a desktop and terminal | [Box API key guide](https://docs.ascii.dev/box/api-keys) |
 | ElevenLabs key | Read replies aloud, and call your bots | [ElevenLabs API keys](https://elevenlabs.io/app/settings/api-keys) |
 | Fish Audio key | Read replies aloud with Fish Audio voices, and call your bots | [Fish Audio API keys](https://fish.audio/app/api-keys/) |
@@ -296,7 +317,7 @@ pnpm package:linux # Ubuntu x64 .deb + AppImage → release/
 
 ### Routines and webhook triggers
 
-Routines can run once, on selected weekdays, or every 5–1,440 minutes, using either a MAUS's configured
+Routines can run once, on selected weekdays, or every 5–1,440 minutes, using either a JLF's configured
 model/computer or the Cloud VM runner. Interval schedules stay aligned to their chosen start time and skip
 an occurrence when the previous run is still active, so slow work cannot build an unbounded queue. A
 separate optional Advanced run limit can safely stop stuck work; no timeout is imposed unless one is chosen.
@@ -304,8 +325,8 @@ The existing duration field remains calendar/display metadata. Webhook triggers 
 but reuse the same queued task executor and calendar
 receipts.
 
-JLFBot starts a webhook-only receiver on `127.0.0.1:8800` by default (or one port above `OMB_PORT`).
-Set `OMB_WEBHOOK_PORT` to choose another port. A webhook secret is shown once when the trigger is created
+JLFBot starts a webhook-only receiver on `127.0.0.1:8800` by default (or one port above `JLFBOT_PORT`).
+Set `JLFBOT_WEBHOOK_PORT` to choose another port. A webhook secret is shown once when the trigger is created
 or rotated. Bearer authentication is recommended so the secret stays out of request URLs and most access
 logs; a single capability URL remains available for senders that cannot configure headers. The receiver
 exposes only `/health` and secret `/hooks/...` endpoints; it never exposes the app's broader API.
@@ -333,11 +354,11 @@ Users can add their own MCP tool servers with zero code via [`docs/custom-mcp-se
 With Node 24 or newer, install once and run:
 
 ```sh
-npm install -g openmausbot
-openmausbot
+npm install -g jlfbot
+jlfbot
 ```
 
-Or use `npx openmausbot` without a global install. First launch guides you with
+Or use `npx jlfbot` without a global install. First launch guides you with
 arrow-key choices: choose AI access, sign in or paste a hidden API key, choose
 a model, and optionally connect a phone. Next time, the same command reuses your
 saved setup and opens the local workspace. Keep the terminal open; Ctrl-C stops
@@ -352,7 +373,7 @@ cannot use a localhost link. `--local` ignores saved remote access for one launc
 `--no-pair` suppresses phone prompts and invitations but does not disable a saved
 remote connection.
 
-Run `openmausbot setup` to reconfigure without resetting bots or conversations;
+Run `jlfbot setup` to reconfigure without resetting bots or conversations;
 the saved model default applies only to new bots. Native setup confirms provider
 sign-in; API setup asks before a potentially billable test message. API keys are
 saved as plaintext, not encrypted, in private `config.json` (`0600` on Unix).
@@ -360,8 +381,8 @@ See the [short setup guide](docs/cli-onboarding.md) for account differences,
 phone choices, credential storage, and cancellation.
 
 For a background service on a VPS or an always-on computer, use
-`npx openmausbot serve` with explicit remote options: `--tunnel` after
-`npx openmausbot login` for a managed public address, `--tailscale` for your
+`npx jlfbot serve` with explicit remote options: `--tunnel` after
+`npx jlfbot login` for a managed public address, `--tailscale` for your
 tailnet, or the Docker stack for your own domain. These are separate from
 AI-provider sign-in. Devices pair once with a short code. The deployment guide is
 [docs/deploy-vps.md](docs/deploy-vps.md); the reference is
@@ -369,11 +390,11 @@ AI-provider sign-in. Devices pair once with a short code. The deployment guide i
 
 ## License
 
-JLFBot is derived from the Apache License 2.0 OpenMausBot open-source edition.
-The original copyright and attribution notices are preserved in [LICENSE](LICENSE)
-and [NOTICE](NOTICE). The source-available `enterprise/` implementation is not
-part of this JLFBot branch.
+JLFBot is a modified fork of an Apache License 2.0 project by Milind Soni and
+contributors; see [NOTICE](NOTICE) for the attribution. The original license and
+notices are preserved in [LICENSE](LICENSE) and [NOTICE](NOTICE). The upstream
+source-available `enterprise/` directory is not part of JLFBot.
 
-OpenMausBot is an independent open-source project inspired by Grok Bot and is
-not affiliated with xAI. JLFBot likewise is not affiliated with, endorsed by,
-or associated with xAI; "Grok" is a trademark of its respective owner.
+JLFBot is an independent personal project inspired by Grok Bot and is not
+affiliated with, endorsed by, or associated with xAI or the upstream project;
+"Grok" is a trademark of its respective owner.
