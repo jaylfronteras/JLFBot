@@ -293,7 +293,9 @@ final class ThreadNavigationUITests: XCTestCase {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"), object: element
         )
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
+        // Same CI headroom as assertThread: a bulk delete settled in >5s on a
+        // loaded macOS runner while the deletion itself was correct.
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
     }
 
     @MainActor

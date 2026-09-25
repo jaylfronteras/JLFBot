@@ -1242,7 +1242,7 @@ describe("workspace credential env strip", () => {
     const operator = {
       JLFBOT_CLOUD_READY_TOKEN: "ready", JLFBOT_CLOUD_BOOTSTRAP: "bootstrap", JLFBOT_CLOUD_GATEWAY_TOKEN: "gateway",
       JLFBOT_CLOUD_MODELS: "models", JLFBOT_CLOUD_REVISION: "revision", JLFBOT_CLOUD_FUTURE_SECRET: "later",
-      JLFBOT_LICENSE_KEY: "license", JLFBOT_INSTALLATION_CREDENTIAL: "fleet", jlf_cloud_ready_token: "windows-spelling",
+      JLFBOT_LICENSE_KEY: "license", JLFBOT_INSTALLATION_CREDENTIAL: "fleet", jlfbot_cloud_ready_token: "windows-spelling",
     };
     // What an engine deliberately receives (server/hosted-models.ts passes the
     // hosted model token as the provider key), plus look-alike names.
