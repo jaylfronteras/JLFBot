@@ -65,7 +65,7 @@ test("the shipped updater adapter explicitly omits only the fixed action and its
   const bundle = readFileSync(new URL("./vendor/electron-updater.cjs", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.ok(bundle.includes(patched));
   const calls = [];
-  const argv = ["/fixture/JLFBot", "--fixture", "jlfbot://organization", "jlfbot://organization?ignored"];
+  const argv = ["/fixture/JLFBot", "--fixture", "openmausbot://organization", "jlfbot://organization?ignored"];
   runInNewContext(`({ app, ${patched} }).relaunch();`, {
     process: { argv }, app: { relaunch: options => calls.push(options.args) },
   });
