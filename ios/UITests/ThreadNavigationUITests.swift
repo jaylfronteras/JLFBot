@@ -111,8 +111,11 @@ final class ThreadNavigationUITests: XCTestCase {
     func testSwitchingThreadsKeepsSeparateUnsentDrafts() {
         let app = launchPreview()
         openGmail(in: app)
+        assertThread("Triage Gmail", in: app)
         let input = app.descendants(matching: .any).matching(identifier: "message-input").firstMatch
-        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        // Same CI headroom as assertThread: on a loaded macOS runner the
+        // composer appeared after >5s while opening the thread was correct.
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
         input.tap()
         input.typeText("Gmail draft only")
 
