@@ -96,6 +96,17 @@ async function fixture(test: (f: any) => Promise<void>, options: { env?: NodeJS.
     // (Only for a conversation with no teammate work outstanding: that keeps it busy.)
     const idle = (threadId = thread) => expect.poll(async () => (await api("/api/bots")).bots.find((b: any) => b.id === chief.id)
       .tasks.find((stored: any) => stored.threadId === threadId).busy, { timeout: 30_000 }).toBe(false);
+    // Every provider turn started on the thread has ended: the engine emits
+    // turn.completed only after releasing the turn. A Stop that lands while
+    // a turn is still being dispatched frees the conversation at once, but
+    // the engine keeps that turn until its process is gone (taskkill on
+    // Windows takes a while), and a message sent before then is refused.
+    const providerTurnsEnded = (threadId = thread) => expect.poll(async () => {
+      const runtime = ((await api(`/api/threads/${threadId}/events?limit=500`)).entries as any[])
+        .filter((entry) => entry.kind === "runtime").map((entry) => entry.data);
+      const started = runtime.filter((event) => event.type === "turn.started").at(-1)?.turnId;
+      return started === undefined || runtime.some((event) => event.type === "turn.completed" && event.turnId === started);
+    }, { timeout: 30_000 }).toBe(true);
     const launches = (botId = chief.id) => jsonl(launchesPath).filter((launch: any) => launch.botId === botId);
     // Prompts a bot's engine has actually consumed: a launch record is
     // written before its engine reads the prompt, so launch counts alone
@@ -137,7 +148,7 @@ async function fixture(test: (f: any) => Promise<void>, options: { env?: NodeJS.
         try { return (await fetch(`${session.info.url}/api/health`, { signal: AbortSignal.timeout(1_000) })).ok; } catch { return false; }
       }, { timeout: 20_000 }).toBe(true);
     };
-    await test({ session, dataDir, cli, api, chief, lead, qa, ops, plan, save, send, wait, idle, turns, prompt, messages, nodes, task, handed,
+    await test({ session, dataDir, cli, api, chief, lead, qa, ops, plan, save, send, wait, idle, providerTurnsEnded, turns, prompt, messages, nodes, task, handed,
       launches, consumed, codexLaunches, codexCalls, codexModels, selectModel, setMode, delegate, gate, holdDelegation, open, thread, useModel, restart });
   } finally {
     if (restarted) await waitForExit(restarted, { signal: "SIGTERM" });
@@ -274,6 +285,9 @@ it("offers the results again when the person stops the return turn before the pr
   await expect.poll(() => f.nodes().find((node: any) => !node.parentId)?.status, { timeout: 20_000 }).toBe("running");
   await f.api(`/api/bots/${f.chief.id}/interrupt`, { threadId: f.thread });
   await f.wait();
+  // The Stop can land while the return turn is still being dispatched; then
+  // the conversation is free before the engine has let go of that turn.
+  await f.providerTurnsEnded();
 
   // Whether the stopped fixture records a turn of its own depends on the
   // order the platform tears its process tree down in. POSIX signals the
