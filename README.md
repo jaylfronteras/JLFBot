@@ -111,8 +111,8 @@ The format stays portable: JLFBot reads the structured YAML frontmatter for a re
 install, while Grok, Claude, ChatGPT, and people can follow the ordinary Markdown playbook. Connections
 remain off until you approve them, routines arrive paused, and packages never carry credentials,
 conversations, permissions, memory, or computer access. Browse the
-[open-source playbook repository](https://github.com/milind-soni/openmausbot-teams) or read its
-[portable format](https://github.com/milind-soni/openmausbot-teams/blob/main/FORMAT.md).
+[open-source playbook repository](https://github.com/jaylfronteras/jlfbot-teams) or read its
+[portable format](https://github.com/jaylfronteras/jlfbot-teams/blob/main/FORMAT.md).
 
 ### 🎧 Bots that talk back
 
