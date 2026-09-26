@@ -18264,6 +18264,12 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
     if (method === "GET" && (path === "/api/usage" || path === "/api/usage.csv")) {
       const range = parseUsageRange(url.searchParams.get("from"), url.searchParams.get("to"));
       if (!range) return json(res, 400, { error: "from and to must be YYYY-MM-DD, from no later than to, at most a year apart" });
+      // A settled turn's row is queued at turn.completed but lands on disk
+      // asynchronously. The spend figure below already counts it from memory
+      // (server/spend.ts), so let queued rows land first: otherwise the same
+      // response can report the spend of a turn its rows leave out. The
+      // flush never rejects and waits only for appends already queued.
+      await flushUsageLedger(DATA_DIR);
       const rows = readUsage(DATA_DIR, range);
       // The operator's price list is applied only with the billing entitlement.
       const prices = operatorPrices();

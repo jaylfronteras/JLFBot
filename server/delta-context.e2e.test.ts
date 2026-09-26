@@ -74,8 +74,17 @@ async function fixture(test: (f: any) => Promise<void>, options: { env?: NodeJS.
     save();
     const thread = chief.activeTaskId;
     const send = async (text: string, threadId = thread) => { save(); return api(`/api/bots/${chief.id}/messages`, { text, threadId }); };
-    const wait = async (threadId = thread) =>
-      expect((await cli("wait", "--bot", chief.id, "--task", threadId, "--timeout", "40")).status).toBe("settled");
+    // A wait that ends any other way says why: the conversation's tail (an
+    // error activity names the failure) and the end of the server's log.
+    const wait = async (threadId = thread) => {
+      const result = await cli("wait", "--bot", chief.id, "--task", threadId, "--timeout", "40");
+      if (result.status === "settled") return;
+      let log = "";
+      try { log = readFileSync(session.info.logPath, "utf8").slice(-4_000); } catch {}
+      let events = "";
+      try { events = JSON.stringify(await api(`/api/threads/${threadId}/events?limit=40`)).slice(-8_000); } catch {}
+      expect(result.status, `wait ended "${result.status}"; messages: ${JSON.stringify(result.messages)}\nthread events tail: ${events}\nserver log tail:\n${log}`).toBe("settled");
+    };
     const turns = (botId = chief.id) => jsonl(`${planPath}.evidence.jsonl`).filter((turn: any) => turn.botId === botId);
     const prompt = (turn: any) => String(turn?.prompt?.message?.content ?? "");
     const messages = async (threadId = thread) => (await api(`/api/threads/${threadId}/messages`)).messages;
@@ -87,6 +96,17 @@ async function fixture(test: (f: any) => Promise<void>, options: { env?: NodeJS.
     // (Only for a conversation with no teammate work outstanding: that keeps it busy.)
     const idle = (threadId = thread) => expect.poll(async () => (await api("/api/bots")).bots.find((b: any) => b.id === chief.id)
       .tasks.find((stored: any) => stored.threadId === threadId).busy, { timeout: 30_000 }).toBe(false);
+    // Every provider turn started on the thread has ended: the engine emits
+    // turn.completed only after releasing the turn. A Stop that lands while
+    // a turn is still being dispatched frees the conversation at once, but
+    // the engine keeps that turn until its process is gone (taskkill on
+    // Windows takes a while), and a message sent before then is refused.
+    const providerTurnsEnded = (threadId = thread) => expect.poll(async () => {
+      const runtime = ((await api(`/api/threads/${threadId}/events?limit=500`)).entries as any[])
+        .filter((entry) => entry.kind === "runtime").map((entry) => entry.data);
+      const started = runtime.filter((event) => event.type === "turn.started").at(-1)?.turnId;
+      return started === undefined || runtime.some((event) => event.type === "turn.completed" && event.turnId === started);
+    }, { timeout: 30_000 }).toBe(true);
     const launches = (botId = chief.id) => jsonl(launchesPath).filter((launch: any) => launch.botId === botId);
     // Prompts a bot's engine has actually consumed: a launch record is
     // written before its engine reads the prompt, so launch counts alone
@@ -128,7 +148,7 @@ async function fixture(test: (f: any) => Promise<void>, options: { env?: NodeJS.
         try { return (await fetch(`${session.info.url}/api/health`, { signal: AbortSignal.timeout(1_000) })).ok; } catch { return false; }
       }, { timeout: 20_000 }).toBe(true);
     };
-    await test({ session, dataDir, cli, api, chief, lead, qa, ops, plan, save, send, wait, idle, turns, prompt, messages, nodes, task, handed,
+    await test({ session, dataDir, cli, api, chief, lead, qa, ops, plan, save, send, wait, idle, providerTurnsEnded, turns, prompt, messages, nodes, task, handed,
       launches, consumed, codexLaunches, codexCalls, codexModels, selectModel, setMode, delegate, gate, holdDelegation, open, thread, useModel, restart });
   } finally {
     if (restarted) await waitForExit(restarted, { signal: "SIGTERM" });
@@ -257,17 +277,34 @@ it("offers the results again when the return turn fails before the provider acts
 it("offers the results again when the person stops the return turn before the provider acts on it", () => fixture(async (f) => {
   await warmUp(f);
   f.plan[f.lead.id] = { reply: "STOPPED_RETURN_RESULT" };
-  f.plan[f.chief.id] = { turns: [{}, f.delegate("build", [f.lead], "Build the export"), { reply: "never sent", gateFile: f.gate("return") }, { reply: "Recovered" }] };
+  // The return turn holds on a gate that never opens: only the person's Stop
+  // ends it, so it can never answer.
+  f.plan[f.chief.id] = { turns: [{}, f.delegate("build", [f.lead], "Build the export"), { reply: "never sent", gateFile: f.gate("return") }] };
   await f.send("Please have Engineering build the export.");
   await expect.poll(() => f.nodes().find((node: any) => node.botId === f.lead.id)?.status, { timeout: 20_000 }).toBe("completed");
   await expect.poll(() => f.nodes().find((node: any) => !node.parentId)?.status, { timeout: 20_000 }).toBe("running");
   await f.api(`/api/bots/${f.chief.id}/interrupt`, { threadId: f.thread });
   await f.wait();
-  f.open(f.gate("return"));
+  // The Stop can land while the return turn is still being dispatched; then
+  // the conversation is free before the engine has let go of that turn.
+  await f.providerTurnsEnded();
 
+  // Whether the stopped fixture records a turn of its own depends on the
+  // order the platform tears its process tree down in. POSIX signals the
+  // whole group at once; Windows' taskkill /T ends the processes one by one,
+  // so when the fixture's MCP child dies first the fixture fails and appends
+  // its evidence before it is killed itself. Picking the next reply by the
+  // evidence count (and opening the stopped turn's gate) made the following
+  // turn race that teardown, so name the next reply explicitly and find the
+  // turn by its prompt.
+  f.plan[f.chief.id] = { reply: "Recovered", resumeReply: "Recovered" };
   await f.send("What did Engineering find?");
   await f.wait();
-  expect(count(f.prompt(f.turns().at(-1)), "STOPPED_RETURN_RESULT")).toBe(1);
+  const next = f.turns().filter((turn: any) => f.prompt(turn).includes("What did Engineering find?")).at(-1);
+  expect(count(f.prompt(next), "STOPPED_RETURN_RESULT")).toBe(1);
+  const replies = (await f.messages()).map((message: any) => message.text);
+  expect(replies).toContain("Recovered");
+  expect(replies).not.toContain("never sent");
 }), 60_000);
 
 it("rebuilds a rejected resume with each result exactly once", () => fixture(async (f) => {
