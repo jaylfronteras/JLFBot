@@ -74,8 +74,17 @@ async function fixture(test: (f: any) => Promise<void>, options: { env?: NodeJS.
     save();
     const thread = chief.activeTaskId;
     const send = async (text: string, threadId = thread) => { save(); return api(`/api/bots/${chief.id}/messages`, { text, threadId }); };
-    const wait = async (threadId = thread) =>
-      expect((await cli("wait", "--bot", chief.id, "--task", threadId, "--timeout", "40")).status).toBe("settled");
+    // A wait that ends any other way says why: the conversation's tail (an
+    // error activity names the failure) and the end of the server's log.
+    const wait = async (threadId = thread) => {
+      const result = await cli("wait", "--bot", chief.id, "--task", threadId, "--timeout", "40");
+      if (result.status === "settled") return;
+      let log = "";
+      try { log = readFileSync(session.info.logPath, "utf8").slice(-4_000); } catch {}
+      let events = "";
+      try { events = JSON.stringify(await api(`/api/threads/${threadId}/events?limit=40`)).slice(-8_000); } catch {}
+      expect(result.status, `wait ended "${result.status}"; messages: ${JSON.stringify(result.messages)}\nthread events tail: ${events}\nserver log tail:\n${log}`).toBe("settled");
+    };
     const turns = (botId = chief.id) => jsonl(`${planPath}.evidence.jsonl`).filter((turn: any) => turn.botId === botId);
     const prompt = (turn: any) => String(turn?.prompt?.message?.content ?? "");
     const messages = async (threadId = thread) => (await api(`/api/threads/${threadId}/messages`)).messages;
