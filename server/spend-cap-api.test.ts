@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { launchVerificationServer, runControlOmb, type VerificationServer } from "../scripts/control-omb.ts";
+import { launchVerificationServer, runControlOmb, type VerificationServer } from "../scripts/control-jlfbot.ts";
 import { removeTempDir } from "./testing/cleanup.ts";
 import { openSse } from "./testing/sse.ts";
 
@@ -18,7 +18,7 @@ describe("spend cap and prices through real turns", () => {
 
   beforeEach(async () => {
     // The folder shape core looks for: <dir>/server/index.js exporting register().
-    layerDir = mkdtempSync(join(tmpdir(), "omb-fake-layer-"));
+    layerDir = mkdtempSync(join(tmpdir(), "jlfbot-fake-layer-"));
     mkdirSync(join(layerDir, "server"));
     writeFileSync(join(layerDir, "server", "index.js"), 'export async function register() { return { customer: "Fixture Co", features: ["budgets", "billing"], expiresAt: "2099-01-01" }; }\n');
     session = await launchVerificationServer(process.env, undefined, undefined, undefined, { dir: layerDir, licenseKey: "fixture-key" });
@@ -101,7 +101,7 @@ describe("spend cap and prices through real turns", () => {
     session = await launchVerificationServer({
       ...process.env,
       FAKE_CLAUDE_REPLIES: JSON.stringify([
-        'Delegating the check.<openmaus-goal>{"status":"continue","next":"Worker","instruction":"Check the draft"}</openmaus-goal>',
+        'Delegating the check.<jlfbot-goal>{"status":"continue","next":"Worker","instruction":"Check the draft"}</jlfbot-goal>',
         "The draft has been checked.",
       ]),
       FAKE_CLAUDE_REPLY_STATE: replyState,

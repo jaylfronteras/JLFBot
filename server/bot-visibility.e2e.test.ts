@@ -55,8 +55,8 @@ async function start() {
     env: {
       ...(process.env.PATH ? { PATH: process.env.PATH } : {}),
       ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
-      HOME: home, USERPROFILE: home, OMB_PORT: String(PORT), OMB_WEBHOOK_PORT: String(PORT + 1),
-      OMB_TEST_INTERNAL_CAPABILITY_KEY: CAPABILITY_KEY,
+      HOME: home, USERPROFILE: home, JLFBOT_PORT: String(PORT), JLFBOT_WEBHOOK_PORT: String(PORT + 1),
+      JLFBOT_TEST_INTERNAL_CAPABILITY_KEY: CAPABILITY_KEY,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -153,8 +153,8 @@ const settledReply = (threadId: string, text: string) => waitFor(async () => {
 posixOnly("per-bot visibility on a shared workspace", () => {
   beforeAll(async () => {
     chmodSync(FAKE_CLI, 0o755);
-    home = mkdtempSync(join(tmpdir(), "omb-bot-visibility-"));
-    const data = join(home, ".openmausbot");
+    home = mkdtempSync(join(tmpdir(), "jlfbot-bot-visibility-"));
+    const data = join(home, ".jlfbot");
     mkdirSync(data, { recursive: true });
     writeFileSync(join(data, "config.json"), JSON.stringify({
       signIn: { admins: [BOSS], members: [ADA, BOB] },
@@ -468,7 +468,7 @@ posixOnly("per-bot visibility on a shared workspace", () => {
     expect((await api("PATCH", `/api/bots/${ids.pub}`, { modelSelection: { instanceId: "grok", model: "fake-model" } }, BOSS)).status).toBe(200);
     // Its session_search does not reach that room either.
     const minted = await fetch(`${BASE}/api/testing/internal-capability`, {
-      method: "POST", headers: { "content-type": "application/json", "x-openmausbot-test-capability": CAPABILITY_KEY },
+      method: "POST", headers: { "content-type": "application/json", "x-jlfbot-test-capability": CAPABILITY_KEY },
       body: JSON.stringify({ botId: ids.pub, threadId: ids.pubThread }),
     });
     const { token } = await minted.json() as { token: string };
@@ -480,7 +480,7 @@ posixOnly("per-bot visibility on a shared workspace", () => {
     // A room turn after Payroll was restricted leaves no line in the
     // helpdesk's daily log, where its default-scope search would find it…
     const logLines = () => {
-      const dir = join(home, ".openmausbot", "workspaces", ids.pub, "memory", "log");
+      const dir = join(home, ".jlfbot", "workspaces", ids.pub, "memory", "log");
       let text = "";
       try {
         for (const file of readdirSync(dir)) text += readFileSync(join(dir, file), "utf8");
@@ -501,7 +501,7 @@ posixOnly("per-bot visibility on a shared workspace", () => {
     expect(logLines()).toBe(linesBefore);
     // …and the helpdesk cannot write notes from that room into its memory.
     const roomToken = await fetch(`${BASE}/api/testing/internal-capability`, {
-      method: "POST", headers: { "content-type": "application/json", "x-openmausbot-test-capability": CAPABILITY_KEY },
+      method: "POST", headers: { "content-type": "application/json", "x-jlfbot-test-capability": CAPABILITY_KEY },
       body: JSON.stringify({ botId: ids.pub, threadId: ids.roomMixedThread }),
     });
     const note = await fetch(`${BASE}/api/internal/memory/log`, {
@@ -515,7 +515,7 @@ posixOnly("per-bot visibility on a shared workspace", () => {
     // admins only while Payroll was admins-only, and floors never widen alone).
     expect((await api("PATCH", `/api/groups/${ids.roomMixed}`, { resetAudience: true }, BOSS)).status).toBe(200);
     const hrMinted = await fetch(`${BASE}/api/testing/internal-capability`, {
-      method: "POST", headers: { "content-type": "application/json", "x-openmausbot-test-capability": CAPABILITY_KEY },
+      method: "POST", headers: { "content-type": "application/json", "x-jlfbot-test-capability": CAPABILITY_KEY },
       body: JSON.stringify({ botId: ids.hr, threadId: ids.hrThread }),
     });
     const hrSearch = await fetch(`${BASE}/api/internal/session-search?fromBotId=${ids.hr}&q=SECRET-ROOM-42`, {
@@ -548,7 +548,7 @@ posixOnly("per-bot visibility on a shared workspace", () => {
     try {
       expect(await bob.ready()).toBeTruthy();
       const minted = await fetch(`${BASE}/api/testing/internal-capability`, {
-        method: "POST", headers: { "content-type": "application/json", "x-openmausbot-test-capability": CAPABILITY_KEY },
+        method: "POST", headers: { "content-type": "application/json", "x-jlfbot-test-capability": CAPABILITY_KEY },
         body: JSON.stringify({ botId: ids.board, threadId: (await api("GET", "/api/bots?messages=0", undefined, BOSS)).body.bots.find((b: any) => b.id === ids.board).threadId }),
       });
       const { token } = await minted.json() as { token: string };
@@ -599,7 +599,7 @@ posixOnly("per-bot visibility on a shared workspace", () => {
     expect(JSON.stringify((await api("GET", "/api/bots?messages=0", undefined, ADA)).body.groups)).not.toContain("audienceFloor");
     // It stays out of the helpdesk's recall too.
     const minted = await fetch(`${BASE}/api/testing/internal-capability`, {
-      method: "POST", headers: { "content-type": "application/json", "x-openmausbot-test-capability": CAPABILITY_KEY },
+      method: "POST", headers: { "content-type": "application/json", "x-jlfbot-test-capability": CAPABILITY_KEY },
       body: JSON.stringify({ botId: ids.pub, threadId: ids.pubThread }),
     });
     const search = await fetch(`${BASE}/api/internal/session-search?fromBotId=${ids.pub}&q=SECRET-ROOM-42`, {

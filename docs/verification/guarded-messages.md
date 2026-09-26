@@ -32,9 +32,9 @@ Run the permanent isolated HTTP checks:
 pnpm exec vitest run server/guarded-messages-api.test.ts
 ```
 
-Each case launches the prescribed `control-omb` verification server in a fresh
+Each case launches the prescribed `control-jlfbot` verification server in a fresh
 home and uses only its gated fake provider. The test records the exact HTTP
-requests, `control:omb` commands, bounded transcripts and wait results next to
+requests, `control:jlfbot` commands, bounded transcripts and wait results next to
 the server log in a `.log.guarded-messages.json` receipt. Temporary homes and
 their child processes are closed by each fixture.
 
@@ -118,11 +118,11 @@ isolated fakes.
 ## Dedicated shared-workspace operator policy
 
 An operator who explicitly authorizes Full access in a dedicated company
-workspace can provision `OMB_SHARED_WORKSPACE_FULL_ACCESS=1` at server startup.
-It is active only with a fully validated HTTPS `OMB_ADMIN_URL`,
-`OMB_PUBLIC_URL`, workspace slug `OMB_ADMIN_WORKSPACE`,
-`OMB_ADMIN_MEMBERSHIP=portal`, a loaded hosted-access hook and a live `admin`
-entitlement. `OMB_DESKTOP_PARENT=1` disallows it. HTTP settings cannot toggle it.
+workspace can provision `JLFBOT_SHARED_WORKSPACE_FULL_ACCESS=1` at server startup.
+It is active only with a fully validated HTTPS `JLFBOT_ADMIN_URL`,
+`JLFBOT_PUBLIC_URL`, workspace slug `JLFBOT_ADMIN_WORKSPACE`,
+`JLFBOT_ADMIN_MEMBERSHIP=portal`, a loaded hosted-access hook and a live `admin`
+entitlement. `JLFBOT_DESKTOP_PARENT=1` disallows it. HTTP settings cannot toggle it.
 
 Only while that policy is active does authenticated health advertise
 `capabilities.sharedWorkspaceFullAccess: 1`. A trusted loopback caller may then
@@ -144,7 +144,7 @@ shared task.
 Run the operator-policy and Full/Ask workflow checks:
 
 ```sh
-pnpm exec vitest run server/enterprise.test.ts server/hosted-access.test.ts server/full-access-workflows.e2e.test.ts server/store.test.ts
+pnpm exec vitest run server/enterprise.test.ts server/request-auth.test.ts server/full-access-workflows.e2e.test.ts server/store.test.ts
 ```
 
 The hosted-access tests exercise the real hosted authorization route with an

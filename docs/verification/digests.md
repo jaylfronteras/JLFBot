@@ -8,11 +8,11 @@ actions transactional, nor authorize a deployment.
 
 ```sh
 pnpm exec vitest run server/digest-control.e2e.test.ts
-pnpm exec vitest run server/commands.test.ts server/store.test.ts server/message-db.test.ts server/digest.test.ts server/checkpoints.test.ts server/hooks/omb-hook.test.ts server/hooks.e2e.test.ts server/digest.e2e.test.ts
+pnpm exec vitest run server/commands.test.ts server/store.test.ts server/message-db.test.ts server/digest.test.ts server/checkpoints.test.ts server/hooks/jlfbot-hook.test.ts server/hooks.e2e.test.ts server/digest.e2e.test.ts
 ```
 
 The first test starts `launchVerificationServer`, then uses the shared
-`control:omb` surface to create two bots, send consecutive direct turns,
+`control:jlfbot` surface to create two bots, send consecutive direct turns,
 wait for settlement, create a room, send to it, and read both transcripts.
 It checks per-turn hook results (including reused tool IDs), unique persisted
 receipts and the room speaker. Commands, wait results and transcripts are
@@ -41,6 +41,6 @@ behavior rather than treating a local macOS run as Windows verification.
 - `full` means every recorded tool row delivered an untruncated result through
   the hook. It does not mean tests passed. Otherwise evidence is `preview` or
   `none`. Hooks have their own four-second timeout, a bounded input and no
-  redirects. `OMB_HOOKS=0` disables them.
+  redirects. `JLFBOT_HOOKS=0` disables them.
 - Desktop chips and native mobile presentation need their respective renderer
   checks. These server tests do not prove layout or a real provider's hooks.

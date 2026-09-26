@@ -3,7 +3,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { launchVerificationServer, runControlOmb } from "../scripts/control-omb.ts";
+import { launchVerificationServer, runControlOmb } from "../scripts/control-jlfbot.ts";
 import { nextCronRuns } from "../shared/routine-schedule.ts";
 
 it("takes cron through the real routine tools and confirmation, preserving its zone and rejecting invalid API input", async () => {
@@ -63,7 +63,7 @@ it("takes cron through the real routine tools and confirmation, preserving its z
     expect(create.subtitle).toContain("Cron: 0 9 1 * *");
     const { resultId: routineId } = await confirm(create);
     const current = async () => (await api("GET", "/api/routines")).routines.find((routine: any) => routine.id === routineId);
-    expect(await current()).toMatchObject({ schedule, enabled: true, runOn: "maus", overlap: "queue" });
+    expect(await current()).toMatchObject({ schedule, enabled: true, runOn: "jlf", overlap: "queue" });
     expect(create.subtitle).toContain("Queue one scheduled run");
     expect((await current()).nextRunAt).toBe(nextCronRuns(schedule, create.routineRequest.createdAt, 1)[0]);
 
@@ -104,7 +104,7 @@ it("takes cron through the real routine tools and confirmation, preserving its z
       name: "Explicit Box", instructions: "Run on the Box-hosted agent.", schedule, run_on: "box",
     }, "Try the separate Box runner without a Box account.", true);
     const boxResponse = providerEvidence().at(-1).evidence.find((entry: any) => entry.step?.tool === "propose_routine").response;
-    expect(boxResponse.result.content[0].text).toContain('run_on="maus"');
+    expect(boxResponse.result.content[0].text).toContain('run_on="jlf"');
     expect(boxResponse.result.content[0].text).toContain("self-hosted VPS");
     const before = await current();
     for (const invalid of [

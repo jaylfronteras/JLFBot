@@ -1417,7 +1417,7 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
           )}
           <TurnPresence
             avatar={
-              // BotAvatar, not a bare MausAvatar: an uploaded profile image
+              // BotAvatar, not a bare JlfAvatar: an uploaded profile image
               // (and a chosen mascot body) must match the sidebar row.
               <BotAvatar
                 bot={bot}

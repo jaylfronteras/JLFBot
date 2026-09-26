@@ -63,9 +63,9 @@ describe("origin and cookies", () => {
     expect(isSameOrigin(request({ host: "a.example", origin: "https://evil.example" }))).toBe(false);
   });
   it("parses cookies and names the session cookie per port and environment", () => {
-    expect(parseCookies("a=1; omb_session_8799_abc=tok; b = 2")).toEqual(new Map([["a", "1"], ["omb_session_8799_abc", "tok"], ["b", "2"]]));
+    expect(parseCookies("a=1; jlf_session_8799_abc=tok; b = 2")).toEqual(new Map([["a", "1"], ["jlf_session_8799_abc", "tok"], ["b", "2"]]));
     expect(parseCookies(undefined).size).toBe(0);
-    expect(sessionCookieName(8799, "3f2a-uuid-like-id")).toBe("omb_session_8799_3f2auuidlike");
+    expect(sessionCookieName(8799, "3f2a-uuid-like-id")).toBe("jlf_session_8799_3f2auuidlike");
     expect(serializeSessionCookie("c", "t", { secure: true, maxAgeSeconds: 60 })).toBe("c=t; Path=/; HttpOnly; SameSite=Lax; Max-Age=60; Secure");
     expect(serializeSessionCookie("c", "t", { secure: false, maxAgeSeconds: 60 })).not.toContain("Secure");
     expect(clearSessionCookie("c")).toContain("Max-Age=0");
@@ -136,12 +136,12 @@ describe("scopes", () => {
 describe("resolveRequestAuth", () => {
   let dir: string;
   let sessions: SessionRegistry;
-  const cookieName = "omb_session_8799_env";
+  const cookieName = "jlf_session_8799_env";
   const resolve = (headers: Record<string, string>, path = "/api/bots", method = "GET") =>
     resolveRequestAuth(request(headers, method), { sessions, cookieName, streamPath: "/api/events", url: new URL(path, "http://x") });
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "omb-auth-"));
+    dir = mkdtempSync(join(tmpdir(), "jlfbot-auth-"));
     sessions = new SessionRegistry({ file: join(dir, "sessions.json") });
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -149,9 +149,9 @@ describe("resolveRequestAuth", () => {
   it("accepts authenticated relay mutations without exposing the desktop owner capability", () => {
     const headers = {
       host: "127.0.0.1:8799",
-      "x-openmausbot-companion": "1",
-      "x-openmausbot-companion-device": "phone-1",
-      "x-openmausbot-companion-auth": "relay-secret",
+      "x-jlfbot-companion": "1",
+      "x-jlfbot-companion-device": "phone-1",
+      "x-jlfbot-companion-auth": "relay-secret",
     };
     const check = (method: string, path: string, overrides: Record<string, string> = {}, relay = "relay-secret") =>
       resolveRequestAuth(request({ ...headers, ...overrides }, method), {
@@ -165,10 +165,10 @@ describe("resolveRequestAuth", () => {
       ["GET", "/api/events"], ["PATCH", "/api/bots/b/profile"],
     ]) expect(check(method, path).auth?.kind, path).toBe("loopback");
     const forged: Record<string, string>[] = [
-      { "x-openmausbot-companion-auth": "" },
-      { "x-openmausbot-companion-auth": "desktop-secret" },
-      { "x-openmausbot-companion-device": "" },
-      { "x-openmausbot-companion": "0" },
+      { "x-jlfbot-companion-auth": "" },
+      { "x-jlfbot-companion-auth": "desktop-secret" },
+      { "x-jlfbot-companion-device": "" },
+      { "x-jlfbot-companion": "0" },
       { origin: "https://evil.example" },
       { "x-forwarded-for": "203.0.113.1" },
       { host: "remote.example" },
@@ -264,7 +264,7 @@ describe("resolveRequestAuth", () => {
     const desktop = resolveRequestAuth(
       request({
         host: "127.0.0.1:8799",
-        "x-openmausbot-desktop-owner": "owner-token-123",
+        "x-jlfbot-desktop-owner": "owner-token-123",
       }, "POST"),
       options("/api/routines"),
     );
@@ -392,7 +392,7 @@ describe("resolveRequestAuth", () => {
   });
 });
 
-describe("an IPC listener (openmausbot serve --tunnel) is remote by construction", () => {
+describe("an IPC listener (jlfbot serve --tunnel) is remote by construction", () => {
   // SAFETY: only headers, method and the socket peer are read; a unix-socket peer has no address
   const overSocket = (headers: Record<string, string>) => ({ headers, method: "GET", socket: {} }) as unknown as IncomingMessage;
 
@@ -409,10 +409,10 @@ describe("an IPC listener (openmausbot serve --tunnel) is remote by construction
   });
 
   it("never grants loopback trust over the socket, even with a loopback Host and no forwarded headers; a session works", () => {
-    const dir = mkdtempSync(join(tmpdir(), "omb-auth-ipc-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-auth-ipc-"));
     try {
       const sessions = new SessionRegistry({ file: join(dir, "sessions.json") });
-      const gate = { sessions, cookieName: "omb_session_test", streamPath: "/api/events", url: new URL("/api/bots", "http://x") };
+      const gate = { sessions, cookieName: "jlf_session_test", streamPath: "/api/events", url: new URL("/api/bots", "http://x") };
       const denied = resolveRequestAuth(overSocket({ host: "127.0.0.1:8799" }), gate);
       expect(denied.auth).toBeNull();
       expect(denied.status).toBe(403);
@@ -420,7 +420,7 @@ describe("an IPC listener (openmausbot serve --tunnel) is remote by construction
       const { code } = sessions.openPairing({ scopes: ["admin", "client"] });
       const paired = sessions.exchange({ code, label: "phone", source: "203.0.113.9" });
       if (!paired.ok) throw new Error(paired.error);
-      const admitted = resolveRequestAuth(overSocket({ host: "c-1.openmausbot.com", authorization: `Bearer ${paired.token}` }), gate);
+      const admitted = resolveRequestAuth(overSocket({ host: "c-1.jlfbot.example.com", authorization: `Bearer ${paired.token}` }), gate);
       expect(admitted.auth?.kind).toBe("session");
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -431,7 +431,7 @@ describe("an IPC listener (openmausbot serve --tunnel) is remote by construction
 describe("loopback trust: owner on one person's machine, service on a shared workspace", () => {
   let dir: string;
   let sessions: SessionRegistry;
-  const cookieName = "omb_session_8799_env";
+  const cookieName = "jlf_session_8799_env";
   const local = { host: "127.0.0.1:8799" };
   const check = (method: string, path: string, options: { trust?: "owner" | "service"; headers?: Record<string, string>; desktopToken?: string } = {}) =>
     resolveRequestAuth(request({ ...local, ...options.headers }, method), {
@@ -441,13 +441,13 @@ describe("loopback trust: owner on one person's machine, service on a shared wor
     });
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "omb-auth-trust-"));
+    dir = mkdtempSync(join(tmpdir(), "jlfbot-auth-trust-"));
     sessions = new SessionRegistry({ file: join(dir, "sessions.json") });
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
   // Every call the deployed cloud Slack worker makes to the runtime
-  // (openmaus-cloud server/slack-worker.ts, every released version), plus
+  // (jlfbot-cloud server/slack-worker.ts, every released version), plus
   // the bot capability routes and liveness. None of these may break.
   const SERVICE_CALLS: Array<[string, string]> = [
     ["GET", "/api/health"],
@@ -510,7 +510,7 @@ describe("loopback trust: owner on one person's machine, service on a shared wor
   });
 
   it("ignores service trust while the desktop capability is in force", () => {
-    expect(check("PUT", "/api/config", { trust: "service", desktopToken: "owner-token", headers: { "x-openmausbot-desktop-owner": "owner-token" } }).auth)
+    expect(check("PUT", "/api/config", { trust: "service", desktopToken: "owner-token", headers: { "x-jlfbot-desktop-owner": "owner-token" } }).auth)
       .toEqual({ kind: "loopback", scopes: ["admin", "client"] });
   });
 
@@ -519,17 +519,17 @@ describe("loopback trust: owner on one person's machine, service on a shared wor
       resolveLoopbackTrust({ env, desktopManaged: false, hostedWorkspace: false, ...flags });
     expect(pick({})).toEqual({ trust: "owner", reason: "self-hosted default" });
     expect(pick({}, { hostedWorkspace: true })).toEqual({ trust: "service", reason: "hosted workspace" });
-    expect(pick({ OMB_LOOPBACK_TRUST: "service" })).toEqual({ trust: "service", reason: "OMB_LOOPBACK_TRUST" });
-    expect(pick({ OMB_LOOPBACK_TRUST: " Service " }).trust).toBe("service");
-    const forced = pick({ OMB_LOOPBACK_TRUST: "owner" }, { hostedWorkspace: true });
+    expect(pick({ JLFBOT_LOOPBACK_TRUST: "service" })).toEqual({ trust: "service", reason: "JLFBOT_LOOPBACK_TRUST" });
+    expect(pick({ JLFBOT_LOOPBACK_TRUST: " Service " }).trust).toBe("service");
+    const forced = pick({ JLFBOT_LOOPBACK_TRUST: "owner" }, { hostedWorkspace: true });
     expect(forced.trust).toBe("owner");
     expect(forced.warning).toMatch(/shared workspace/);
-    const typo = pick({ OMB_LOOPBACK_TRUST: "own3r\n" });
+    const typo = pick({ JLFBOT_LOOPBACK_TRUST: "own3r\n" });
     expect(typo.trust).toBe("service");
     expect(typo.warning).toMatch(/not owner or service/);
     expect(typo.warning).not.toContain("\n");
-    expect(pick({ OMB_LOOPBACK_TRUST: "" }).trust).toBe("owner");
-    const desktop = pick({ OMB_LOOPBACK_TRUST: "service" }, { desktopManaged: true, hostedWorkspace: true });
+    expect(pick({ JLFBOT_LOOPBACK_TRUST: "" }).trust).toBe("owner");
+    const desktop = pick({ JLFBOT_LOOPBACK_TRUST: "service" }, { desktopManaged: true, hostedWorkspace: true });
     expect(desktop.trust).toBe("owner");
     expect(desktop.warning).toMatch(/ignored in the desktop app/);
   });
@@ -537,7 +537,7 @@ describe("loopback trust: owner on one person's machine, service on a shared wor
   it("lets only the CLI that started the server, holding its secret, mint a pairing code under service trust", () => {
     const secret = "c".repeat(43);
     const as = (method: string, path: string, header?: string, token: string | null = secret) =>
-      resolveRequestAuth(request({ ...local, ...(header ? { "x-openmausbot-cli-owner": header } : {}) }, method), {
+      resolveRequestAuth(request({ ...local, ...(header ? { "x-jlfbot-cli-owner": header } : {}) }, method), {
         sessions, cookieName, streamPath: "/api/events", url: new URL(path, "http://x"), loopbackTrust: "service", cliOwnerToken: token ?? undefined,
       });
     expect(as("POST", "/api/auth/pairing", secret).auth).toEqual({ kind: "loopback", scopes: ["admin", "client"] });

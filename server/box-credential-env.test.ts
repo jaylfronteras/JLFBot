@@ -4,7 +4,7 @@ import { boxCredentialEnv } from "./box.ts";
 import type { AppConfig } from "./config.ts";
 
 // The box is created with `noEnv: true`, so the only keys its agents ever see
-// are the ones this OpenMausBot forwards. Forward exactly what the user
+// are the ones this JLFBot forwards. Forward exactly what the user
 // already configured here; never invent, never leak unrelated variables.
 describe("boxCredentialEnv", () => {
   it("forwards the workspace Anthropic key and the known agent keys from the environment", () => {
@@ -13,7 +13,7 @@ describe("boxCredentialEnv", () => {
       OPENAI_API_KEY: "sk-openai",
       DEEPSEEK_API_KEY: "sk-deepseek",
       XAI_API_KEY: "xai-not-a-box-key",
-      OMB_BROWSER_CONNECTION: "private",
+      JLFBOT_BROWSER_CONNECTION: "private",
       CLAUDE_CODE_OAUTH_TOKEN: "",
     };
     expect(boxCredentialEnv(cfg, env)).toEqual({

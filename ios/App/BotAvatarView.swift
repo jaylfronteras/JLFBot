@@ -8,8 +8,8 @@ import CompanionCore
 struct BotAvatarView: View {
     let bot: Bot
     let size: CGFloat
-    var state: MausState = .idle
-    /// Opt-in, mirroring MausAvatar: an animated face is a 30fps canvas.
+    var state: JlfState = .idle
+    /// Opt-in, mirroring JlfAvatar: an animated face is a 30fps canvas.
     var animated = false
     var comets = false
 
@@ -93,7 +93,7 @@ struct BotAvatarView: View {
     }
 
     private var mascot: some View {
-        MausAvatar(
+        JlfAvatar(
             color: bot.color, size: size, bodyId: bot.mascotBody,
             state: state, animated: animated, comets: comets)
     }
@@ -136,8 +136,8 @@ private struct AnimatedAttachmentView: UIViewRepresentable {
 struct ChatAvatarView: View {
     let chat: Chat
     let size: CGFloat
-    var state: MausState = .idle
-    /// Opt-in, mirroring MausAvatar: an animated face is a 30fps canvas.
+    var state: JlfState = .idle
+    /// Opt-in, mirroring JlfAvatar: an animated face is a 30fps canvas.
     var animated = false
     var comets = false
 
@@ -146,7 +146,7 @@ struct ChatAvatarView: View {
         case let .bot(bot):
             BotAvatarView(bot: bot, size: size, state: state, animated: animated, comets: comets)
         case .room:
-            MausAvatar(color: "blue", size: size, state: state, animated: animated, comets: comets)
+            JlfAvatar(color: "blue", size: size, state: state, animated: animated, comets: comets)
         }
     }
 }

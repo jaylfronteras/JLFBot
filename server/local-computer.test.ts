@@ -75,7 +75,7 @@ function linuxDescriptor(userData: string, { session = "x11" }: { session?: "x11
       args: ["mcp", "--embedded", "--socket", socket],
       env: {
         CUA_DRIVER_EMBEDDED: "1",
-        CUA_DRIVER_HOST_BUNDLE_ID: "com.openmausbot.app",
+        CUA_DRIVER_HOST_BUNDLE_ID: "com.jlfbot.app",
         CUA_DRIVER_RS_UPDATE_CHECK: "false",
         CUA_DRIVER_RS_TELEMETRY_ENABLED: "false",
         ...(session === "wayland" ? { CUA_DRIVER_RS_ENABLE_WAYLAND: "1" } : {}),
@@ -95,9 +95,9 @@ describe("local computer descriptor contract", () => {
     };
     const gated = gatedLocalComputer(connection, { url: "http://127.0.0.1:1234/control", token: "fixture-token" });
     expect(gated).toMatchObject({ command: process.execPath, args: ["--experimental-strip-types", SPAWNED_PROXIES.localComputer], platform: "linux", scope: "local-computer", generation: connection.generation });
-    expect(gated.env).toEqual({ ...connection.env, ELECTRON_RUN_AS_NODE: "1", OMB_CUA_COMMAND: connection.command, OMB_CUA_ARGS: JSON.stringify(connection.args), OMB_CONTROL_URL: "http://127.0.0.1:1234/control", OMB_CONTROL_TOKEN: "fixture-token" });
+    expect(gated.env).toEqual({ ...connection.env, ELECTRON_RUN_AS_NODE: "1", JLFBOT_CUA_COMMAND: connection.command, JLFBOT_CUA_ARGS: JSON.stringify(connection.args), JLFBOT_CONTROL_URL: "http://127.0.0.1:1234/control", JLFBOT_CONTROL_TOKEN: "fixture-token" });
     expect(gated.args.join(" ")).not.toContain("fixture-token");
-    expect(connection.env).not.toHaveProperty("OMB_CONTROL_TOKEN");
+    expect(connection.env).not.toHaveProperty("JLFBOT_CONTROL_TOKEN");
   });
   it("owns the helper's Node mode even when the daemon environment disagrees", () => {
     const gated = gatedLocalComputer({ command: "/trusted/cua-driver", args: ["mcp"], env: { ELECTRON_RUN_AS_NODE: "0" }, platform: "darwin", scope: "local-computer" }, { url: "http://127.0.0.1:1234/control", token: "fixture-token" });
@@ -113,7 +113,7 @@ const temporaryDirectories: string[] = [];
 
 function privateUserData(name: string) {
   const base = process.platform === "win32" ? tmpdir() : realpathSync("/tmp");
-  const root = mkdtempSync(join(base, "omb-local-computer-"));
+  const root = mkdtempSync(join(base, "jlfbot-local-computer-"));
   temporaryDirectories.push(root);
   const userData = join(root, name);
   mkdirSync(userData, { recursive: true, mode: 0o700 });

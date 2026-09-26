@@ -4,14 +4,14 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import { resolveAgentBrowserBinary } from "../../server/browser-engine.ts";
 import { waitForExit } from "../../server/testing/cleanup.ts";
-import { runControlOmb } from "../control-omb.ts";
-import { UI_TOOLS_DIR } from "./control-omb-ui.ts";
+import { runControlOmb } from "../control-jlfbot.ts";
+import { UI_TOOLS_DIR } from "./control-jlfbot-ui.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-const enabled = process.env.OMB_UI_E2E === "1" || Boolean(resolveAgentBrowserBinary({ dataDir: UI_TOOLS_DIR, env: process.env }));
+const enabled = process.env.JLFBOT_UI_E2E === "1" || Boolean(resolveAgentBrowserBinary({ dataDir: UI_TOOLS_DIR, env: process.env }));
 
 (enabled ? it : it.skip)("lets an owner select and revoke exactly the Chief's additional teams in the real settings UI", async () => {
-  const child = spawn(process.execPath, ["--experimental-strip-types", "scripts/control-omb.ts", "ui", "launch"], {
+  const child = spawn(process.execPath, ["--experimental-strip-types", "scripts/control-jlfbot.ts", "ui", "launch"], {
     cwd: ROOT, env: process.env, stdio: ["ignore", "pipe", "pipe"],
   });
   let output = "";

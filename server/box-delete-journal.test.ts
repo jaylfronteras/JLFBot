@@ -26,7 +26,7 @@ function worker(dataDir: string, source: string) {
     "--eval",
     source,
   ], {
-    env: { ...process.env, OMB_DATA_DIR: dataDir },
+    env: { ...process.env, JLFBOT_DATA_DIR: dataDir },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let stderr = "";
@@ -51,8 +51,8 @@ describe("Box deletion journal", () => {
   let dataDir: string;
 
   beforeEach(() => {
-    dataDir = mkdtempSync(join(tmpdir(), "omb-box-delete-journal-"));
-    vi.stubEnv("OMB_DATA_DIR", dataDir);
+    dataDir = mkdtempSync(join(tmpdir(), "jlfbot-box-delete-journal-"));
+    vi.stubEnv("JLFBOT_DATA_DIR", dataDir);
     vi.resetModules();
   });
 
@@ -212,7 +212,7 @@ describe("Box deletion journal", () => {
   });
 
   it("serializes independent processes without losing either prepared deletion", async () => {
-    const concurrentDir = mkdtempSync(join(tmpdir(), "omb-box-delete-processes-"));
+    const concurrentDir = mkdtempSync(join(tmpdir(), "jlfbot-box-delete-processes-"));
     const source = (boxId: string, name: string) => `
       const journal = await import(${JSON.stringify(MODULE_URL)});
       journal.boxDeletionSnapshot();
@@ -250,7 +250,7 @@ describe("Box deletion journal", () => {
   });
 
   it("recovers a complete lock left by an exited process", async () => {
-    const staleDir = mkdtempSync(join(tmpdir(), "omb-box-delete-stale-lock-"));
+    const staleDir = mkdtempSync(join(tmpdir(), "jlfbot-box-delete-stale-lock-"));
     const exited = spawn(process.execPath, ["--eval", ""], { stdio: "ignore" });
     const exitedPid = exited.pid;
     expect(exitedPid).toBeTypeOf("number");

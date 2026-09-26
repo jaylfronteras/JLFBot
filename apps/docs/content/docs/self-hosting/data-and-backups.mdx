@@ -1,15 +1,15 @@
 ---
 title: Data and backups
-description: Know what OpenMausBot stores locally and what to preserve.
+description: Know what JLFBot stores locally and what to preserve.
 icon: DatabaseBackup
 ---
 
-OpenMausBot keeps its application state under `~/.openmausbot`, including configuration, transcripts, message attachments, device pairing state, and the SQLite message store.
+JLFBot keeps its application state under `~/.jlfbot`, including configuration, transcripts, message attachments, device pairing state, and the SQLite message store.
 
 ## Export and import in Settings
 
 Open **Settings → Backups → Export full backup**. Choose a password of at least
-12 characters and save the encrypted `.ombbackup` file. Keep the password
+12 characters and save the encrypted `.jlfbotbackup` file. Keep the password
 separately: there is no password recovery.
 
 The backup contains this server workspace's bots, threads and complete message
@@ -47,7 +47,7 @@ replaced. Type **REPLACE** to confirm, then fully quit and reopen the desktop ap
 or restart the hosted server process. Closing a desktop window is not enough.
 
 Restore **replaces**, rather than combines, workspace data. The previous data is
-kept under `.openmausbot/.backups/safety-<restore-id>/`. A failed or interrupted
+kept under `.jlfbot/.backups/safety-<restore-id>/`. A failed or interrupted
 replacement recovers the previous files before the server loads them. Keep that
 safety directory until you have checked the restored workspace. It contains
 private data; do not share it.
@@ -65,7 +65,7 @@ calls are not automatically restarted, and unfinished delegated work is not
 replayed. Review and re-enable automation deliberately after restoring.
 
 The old partial export is no longer offered in the sidebar. Existing
-`.mausbackup.json` files can still be imported through **Teams** as independent
+`.jlfbackup.json` files can still be imported through **Teams** as independent
 copies. Shareable team templates remain separate from full backups.
 
 ## What stays outside a workspace backup
@@ -86,7 +86,7 @@ paths are not copied or rewritten; check them when moving between computers.
 
 ## Filesystem-level backups
 
-Close OpenMausBot before taking a filesystem-level backup so SQLite and configuration files are captured consistently. Preserve the entire `.openmausbot` directory rather than selecting individual database files.
+Close JLFBot before taking a filesystem-level backup so SQLite and configuration files are captured consistently. Preserve the entire `.jlfbot` directory rather than selecting individual database files.
 
 Raw filesystem snapshots differ from Settings exports: they may include saved
 credentials, CLI homes and browser sessions. A Docker snapshot of the whole

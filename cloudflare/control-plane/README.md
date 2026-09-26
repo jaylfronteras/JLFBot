@@ -1,4 +1,4 @@
-# OpenMausBot control plane
+# JLFBot control plane
 
 This directory is an isolated Cloudflare Worker for cloud account identity,
 installation ownership, and per-installation managed companion endpoints. It
@@ -13,7 +13,7 @@ tool output.
   messages. Authentication responses remain generic even when delivery fails;
   email addresses, OTPs, secrets, and provider errors are never logged.
 - Owner-scoped desktop installations and independently revocable
-  `omb_install_…` credentials. Account bearer tokens are never accepted as
+  `jlf_install_…` credentials. Account bearer tokens are never accepted as
   installation credentials, or vice versa.
 - Exact-origin CORS, bounded JSON bodies, redacted errors, and `no-store` on
   every response.
@@ -69,7 +69,7 @@ requests cannot both return credentials while one invalidates the other.
 
 ### Managed endpoint contract
 
-All three endpoint methods require `Authorization: Bearer <omb_install_…>`.
+All three endpoint methods require `Authorization: Bearer <jlf_install_…>`.
 Account bearer tokens are rejected.
 
 - `GET` returns `{ "endpoint": null }` before allocation or after deletion.
@@ -136,8 +136,8 @@ non-production scoped `CLOUDFLARE_API_TOKEN`, apply the migrations locally, and
 start Wrangler:
 
 ```sh
-pnpm --filter @openmausbot/control-plane exec wrangler d1 migrations apply DB --local --config wrangler.jsonc
-pnpm --filter @openmausbot/control-plane exec wrangler dev --config wrangler.jsonc
+pnpm --filter @jlfbot/control-plane exec wrangler d1 migrations apply DB --local --config wrangler.jsonc
+pnpm --filter @jlfbot/control-plane exec wrangler dev --config wrangler.jsonc
 ```
 
 Do not commit `.dev.vars`.
@@ -148,13 +148,14 @@ The checked-in Wrangler file is intentionally non-deployable production
 scaffolding. No remote resource was created or changed while preparing it.
 Before a production deployment, an operator must:
 
-1. Choose and route an HTTPS hostname, then replace `BETTER_AUTH_URL`. The
-   Worker has `workers_dev` disabled and no production route in this PR.
+1. Choose and route an HTTPS hostname (add a `routes` entry to `wrangler.jsonc`),
+   then replace `BETTER_AUTH_URL`. Set `CLOUDFLARE_ACCOUNT_ID` in your deploy
+   environment; `wrangler.jsonc` deliberately has no `account_id`.
 2. Generate a strong production `BETTER_AUTH_SECRET` and add it with Wrangler's
    interactive secret command. Add `CLOUDFLARE_API_TOKEN` the same way. The
    checked-in `secrets.required` names validate local configuration and generate
    binding types; they do not contain or upload values.
-3. Create the D1 database, replace the all-zero `database_id`, review the pinned
+3. Create the D1 database, replace the `<YOUR_D1_DATABASE_ID>` placeholder, review the pinned
    migrations, and apply them to that database.
 4. Complete Cloudflare Email Sending domain onboarding, replace the placeholder
    sender in both `EMAIL_FROM` and `allowed_sender_addresses`, and grant the
@@ -174,7 +175,7 @@ Before a production deployment, an operator must:
 7. Replace `ALLOWED_ORIGINS` with a comma-separated allow-list of exact HTTPS
    application origins. Wildcards are deliberately unsupported.
 8. Deploy the Worker and verify that `GET <BETTER_AUTH_URL>/healthz` returns
-   exactly `{ "ok": true, "service": "openmausbot-control-plane" }` over
+   exactly `{ "ok": true, "service": "jlfbot-control-plane" }` over
    HTTPS before shipping the desktop build. Electron probes this endpoint and
    keeps new hosted onboarding hidden until it is healthy; an already signed-in
    user remains visible so cleanup and recovery are not stranded.

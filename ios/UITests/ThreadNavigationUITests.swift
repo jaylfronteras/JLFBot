@@ -111,8 +111,11 @@ final class ThreadNavigationUITests: XCTestCase {
     func testSwitchingThreadsKeepsSeparateUnsentDrafts() {
         let app = launchPreview()
         openGmail(in: app)
+        assertThread("Triage Gmail", in: app)
         let input = app.descendants(matching: .any).matching(identifier: "message-input").firstMatch
-        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        // Same CI headroom as assertThread: on a loaded macOS runner the
+        // composer appeared after >5s while opening the thread was correct.
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
         input.tap()
         input.typeText("Gmail draft only")
 
@@ -293,7 +296,9 @@ final class ThreadNavigationUITests: XCTestCase {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"), object: element
         )
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
+        // Same CI headroom as assertThread: a bulk delete settled in >5s on a
+        // loaded macOS runner while the deletion itself was correct.
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
     }
 
     @MainActor

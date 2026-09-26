@@ -6,18 +6,18 @@ import { promisify } from "node:util";
 import { expect, it } from "vitest";
 import type { WireMessage } from "../../shared/wire.ts";
 import { closeBrowserSession, resolveAgentBrowserBinary } from "../../server/browser-engine.ts";
-import { launchVerificationServer, runControlOmb } from "../control-omb.ts";
-import { ensureUiBrowser, sessionEnv, UI_TOOLS_DIR } from "./control-omb-ui.ts";
+import { launchVerificationServer, runControlOmb } from "../control-jlfbot.ts";
+import { ensureUiBrowser, sessionEnv, UI_TOOLS_DIR } from "./control-jlfbot-ui.ts";
 import { fixtureApi, mountPreview, type MountedPreview } from "./preview-fixture.ts";
 
-const enabled = process.env.OMB_UI_E2E === "1" || !!resolveAgentBrowserBinary({ dataDir: UI_TOOLS_DIR, env: process.env });
-if (!enabled) console.info("skipping stream-buffer e2e: no agent-browser resolves; set OMB_UI_E2E=1 to install the pinned tools");
+const enabled = process.env.JLFBOT_UI_E2E === "1" || !!resolveAgentBrowserBinary({ dataDir: UI_TOOLS_DIR, env: process.env });
+if (!enabled) console.info("skipping stream-buffer e2e: no agent-browser resolves; set JLFBOT_UI_E2E=1 to install the pinned tools");
 const execFileAsync = promisify(execFile);
 
 it.skipIf(!enabled)("drains pending text and reasoning with rAF paused, then settles without duplicated output", async () => {
   const { binary, chrome } = await ensureUiBrowser();
   const fixture = await launchVerificationServer(process.env, undefined, undefined, { binaryPath: binary, executablePath: chrome ?? "" });
-  const env = sessionEnv({ home: fixture.info.dataDir, session: `omb-stream-${new URL(fixture.info.url).port}`, chrome });
+  const env = sessionEnv({ home: fixture.info.dataDir, session: `jlfbot-stream-${new URL(fixture.info.url).port}`, chrome });
   const browser = async (...args: string[]) => {
     const { stdout } = await execFileAsync(binary, [...args, "--json"], { env, timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 1_048_576 });
     const result = JSON.parse(stdout);

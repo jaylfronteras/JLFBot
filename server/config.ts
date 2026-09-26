@@ -1,4 +1,4 @@
-// Config + data dirs. One file, ~/.openmausbot/config.json, env fallbacks:
+// Config + data dirs. One file, ~/.jlfbot/config.json, env fallbacks:
 //   { "xai": {"key":"xai-…"}, "composio": {"apiKey":"ak_…"}, "box": {"token":"…"},
 //     "instances": { "<instanceId>": {"driver":"grok", …} } }
 import { readFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { normalizeImageGenerationUrl, type ImageGenerationConfig } from "../shared/image-generation.ts";
 
 import { writeFileAtomic } from "./atomic.ts";
+import { defaultDataDir } from "./data-dir.ts";
 import { EFFORT_LEVELS } from "../shared/wire.ts";
 import { isModelVariant, type InstanceConfigMap, type ModelSelection } from "./contracts.ts";
 import { PROVIDER_ICON_PRESETS, providerIconError } from "../shared/provider-icon.ts";
@@ -442,7 +443,7 @@ const appConfigSchema = z.object({
   }).optional(),
   threads: threadsConfigSchema.optional(),
   /** The authorization decision log (server/decision-log.ts): days of month
-   * files kept, at least; OMB_DECISION_RETENTION_DAYS wins when set. */
+   * files kept, at least; JLFBOT_DECISION_RETENTION_DAYS wins when set. */
   decisions: z.object({ retentionDays: z.number().int().min(1).max(3650).optional() }).strict().optional(),
   localVm: localVmConfigSchema.optional(),
   features: featureConfigSchema.optional(),
@@ -697,7 +698,7 @@ export function builtInBrowserEnabled(cfg: AppConfig): boolean {
  *
  * Deliberately NOT a Settings toggle: this is a maintainer-only escape hatch
  * for an unfinished feature, not a user preference. Someone who needs it
- * enables it by hand in `~/.openmausbot/config.json`
+ * enables it by hand in `~/.jlfbot/config.json`
  * (`{"features": {"sharedComputers": true}}`) and restarts the server. */
 export function sharedComputersEnabled(cfg: AppConfig): boolean {
   return cfg.features?.sharedComputers === true;
@@ -714,7 +715,7 @@ export function claudeUserMcpEnabled(cfg: AppConfig): boolean {
 
 /** Opt-in generated titles for new bot threads: a cheap provider one-shot
  * names the row instead of the first-message snippet. Off until enabled by
- * hand in ~/.openmausbot/config.json
+ * hand in ~/.jlfbot/config.json
  * (`{"features": {"llmThreadTitles": true}}`); a one-shot that fails or
  * answers anything unusable leaves the snippet untouched. */
 export function llmThreadTitlesEnabled(cfg: AppConfig): boolean {
@@ -746,8 +747,8 @@ export function providerReloadKeys(patch: object): string[] {
   return Object.keys(patch).filter((key) => !FLEET_NEUTRAL_KEYS.has(key));
 }
 
-// OMB_DATA_DIR isolates test/soak rigs from the user's real fleet.
-export const DATA_DIR = process.env.OMB_DATA_DIR ?? join(homedir(), ".openmausbot");
+// JLFBOT_DATA_DIR isolates test/soak rigs from the user's real fleet.
+export const DATA_DIR = process.env.JLFBOT_DATA_DIR ?? defaultDataDir(homedir());
 const LEGACY_DATA_DIR = join(homedir(), ".opengrokbot");
 export const EVENTS_DIR = join(DATA_DIR, "events");
 export const NATIVE_DIR = join(DATA_DIR, "native");
@@ -813,8 +814,8 @@ export function loadConfig(): AppConfig {
   // never the workspace key, so an operator's stray variable cannot flip
   // every Claude bot onto pay-as-you-go billing.
   cfg.anthropic = { ...cfg.anthropic };
-  if (process.env.OMB_ANTHROPIC_API_KEY !== undefined) cfg.anthropic.key = process.env.OMB_ANTHROPIC_API_KEY;
-  if (process.env.OMB_ANTHROPIC_API_URL !== undefined) cfg.anthropic.url = process.env.OMB_ANTHROPIC_API_URL;
+  if (process.env.JLFBOT_ANTHROPIC_API_KEY !== undefined) cfg.anthropic.key = process.env.JLFBOT_ANTHROPIC_API_KEY;
+  if (process.env.JLFBOT_ANTHROPIC_API_URL !== undefined) cfg.anthropic.url = process.env.JLFBOT_ANTHROPIC_API_URL;
   cfg.openaiCompat = { ...cfg.openaiCompat };
   if (process.env.OPENAI_COMPAT_API_KEY !== undefined) cfg.openaiCompat.key = process.env.OPENAI_COMPAT_API_KEY;
   if (process.env.OPENAI_COMPAT_URL !== undefined) cfg.openaiCompat.url = process.env.OPENAI_COMPAT_URL;
@@ -827,18 +828,18 @@ export function loadConfig(): AppConfig {
   cfg.opencodeGo = { ...cfg.opencodeGo };
   if (process.env.OPENCODE_API_KEY !== undefined) cfg.opencodeGo.apiKey = process.env.OPENCODE_API_KEY;
   cfg.tts = { ...cfg.tts };
-  if (process.env.OMB_TTS_KEY !== undefined) cfg.tts.key = process.env.OMB_TTS_KEY;
-  if (process.env.OMB_FISH_AUDIO_API_KEY !== undefined) cfg.tts.fishKey = process.env.OMB_FISH_AUDIO_API_KEY;
+  if (process.env.JLFBOT_TTS_KEY !== undefined) cfg.tts.key = process.env.JLFBOT_TTS_KEY;
+  if (process.env.JLFBOT_FISH_AUDIO_API_KEY !== undefined) cfg.tts.fishKey = process.env.JLFBOT_FISH_AUDIO_API_KEY;
   cfg.imageGen = { ...cfg.imageGen };
-  if (process.env.OMB_OPENAI_IMAGE_KEY !== undefined) cfg.imageGen.key = process.env.OMB_OPENAI_IMAGE_KEY;
-  if (process.env.OMB_CUSTOM_IMAGE_KEY !== undefined) cfg.imageGen.customApiKey = process.env.OMB_CUSTOM_IMAGE_KEY;
+  if (process.env.JLFBOT_OPENAI_IMAGE_KEY !== undefined) cfg.imageGen.key = process.env.JLFBOT_OPENAI_IMAGE_KEY;
+  if (process.env.JLFBOT_CUSTOM_IMAGE_KEY !== undefined) cfg.imageGen.customApiKey = process.env.JLFBOT_CUSTOM_IMAGE_KEY;
   // The sign-in allow-list: env is how a headless box or a container is
   // bootstrapped before anyone can reach Settings.
   const splitEmails = (value: string) => value.split(/[,\s]+/).map((entry) => entry.trim().toLowerCase()).filter(Boolean);
-  if (process.env.OMB_SIGNIN_EMAILS !== undefined || process.env.OMB_SIGNIN_MEMBER_EMAILS !== undefined) {
+  if (process.env.JLFBOT_SIGNIN_EMAILS !== undefined || process.env.JLFBOT_SIGNIN_MEMBER_EMAILS !== undefined) {
     cfg.signIn = { ...cfg.signIn };
-    if (process.env.OMB_SIGNIN_EMAILS !== undefined) cfg.signIn.admins = splitEmails(process.env.OMB_SIGNIN_EMAILS);
-    if (process.env.OMB_SIGNIN_MEMBER_EMAILS !== undefined) cfg.signIn.members = splitEmails(process.env.OMB_SIGNIN_MEMBER_EMAILS);
+    if (process.env.JLFBOT_SIGNIN_EMAILS !== undefined) cfg.signIn.admins = splitEmails(process.env.JLFBOT_SIGNIN_EMAILS);
+    if (process.env.JLFBOT_SIGNIN_MEMBER_EMAILS !== undefined) cfg.signIn.members = splitEmails(process.env.JLFBOT_SIGNIN_MEMBER_EMAILS);
   }
   return cfg;
 }
@@ -853,15 +854,15 @@ export function loadConfig(): AppConfig {
 export function syncCredentialEnv(patch: Partial<Omit<AppConfig, "threads">>): void {
   const secrets: Array<[value: string | undefined, name: string]> = [
     [patch.xai?.key, "XAI_API_KEY"],
-    [patch.anthropic?.key, "OMB_ANTHROPIC_API_KEY"],
+    [patch.anthropic?.key, "JLFBOT_ANTHROPIC_API_KEY"],
     [patch.openaiCompat?.key, "OPENAI_COMPAT_API_KEY"],
     [patch.composio?.apiKey, "COMPOSIO_API_KEY"],
     [patch.box?.token, "BOX_TOKEN"],
     [patch.opencodeGo?.apiKey, "OPENCODE_API_KEY"],
-    [patch.tts?.key, "OMB_TTS_KEY"],
-    [patch.tts?.fishKey, "OMB_FISH_AUDIO_API_KEY"],
-    [patch.imageGen?.key, "OMB_OPENAI_IMAGE_KEY"],
-    [patch.imageGen?.customApiKey, "OMB_CUSTOM_IMAGE_KEY"],
+    [patch.tts?.key, "JLFBOT_TTS_KEY"],
+    [patch.tts?.fishKey, "JLFBOT_FISH_AUDIO_API_KEY"],
+    [patch.imageGen?.key, "JLFBOT_OPENAI_IMAGE_KEY"],
+    [patch.imageGen?.customApiKey, "JLFBOT_CUSTOM_IMAGE_KEY"],
   ];
   for (const [value, name] of secrets) {
     if (value === undefined) continue;
@@ -872,7 +873,7 @@ export function syncCredentialEnv(patch: Partial<Omit<AppConfig, "threads">>): v
   // must follow the same set-when-truthy / delete-when-cleared rule as keys.
   const settings: Array<[value: string | undefined, name: string]> = [
     [patch.openaiCompat?.url, "OPENAI_COMPAT_URL"],
-    [patch.anthropic?.url, "OMB_ANTHROPIC_API_URL"],
+    [patch.anthropic?.url, "JLFBOT_ANTHROPIC_API_URL"],
     [patch.openaiCompat?.model, "OPENAI_COMPAT_MODEL"],
     [patch.openaiCompat?.provider, "OPENAI_COMPAT_PROVIDER"],
   ];
@@ -890,37 +891,37 @@ export function syncCredentialEnv(patch: Partial<Omit<AppConfig, "threads">>): v
  * child these are someone else's keys riding along in `...process.env`. */
 export const WORKSPACE_CREDENTIAL_ENV = [
   "XAI_API_KEY",
-  "OMB_ANTHROPIC_API_KEY",
-  "OMB_ANTHROPIC_API_URL",
-  "OMB_HOSTED_MODEL_TOKEN",
-  "OMB_HOSTED_MODELS",
+  "JLFBOT_ANTHROPIC_API_KEY",
+  "JLFBOT_ANTHROPIC_API_URL",
+  "JLFBOT_HOSTED_MODEL_TOKEN",
+  "JLFBOT_HOSTED_MODELS",
   "OPENAI_COMPAT_API_KEY",
   "OPENAI_COMPAT_URL",
   "BOX_TOKEN",
   "OPENCODE_API_KEY",
-  "OMB_TTS_KEY",
-  "OMB_FISH_AUDIO_API_KEY",
-  "OMB_OPENAI_IMAGE_KEY",
-  "OMB_CUSTOM_IMAGE_KEY",
+  "JLFBOT_TTS_KEY",
+  "JLFBOT_FISH_AUDIO_API_KEY",
+  "JLFBOT_OPENAI_IMAGE_KEY",
+  "JLFBOT_CUSTOM_IMAGE_KEY",
   "COMPOSIO_API_KEY",
-  "OMB_COMPOSIO_BROKER_TOKEN",
+  "JLFBOT_COMPOSIO_BROKER_TOKEN",
   // Harness-private filesystem hints are not credentials themselves, but
   // exposing them to a shell-capable agent points straight at app-owned
   // state. The built-in browser master is delivered privately in memory.
-  "OMB_BROWSER_CONNECTION",
-  "OMB_USER_DATA",
+  "JLFBOT_BROWSER_CONNECTION",
+  "JLFBOT_USER_DATA",
 ] as const;
 
 /** Secrets of whoever operates this server, not of the workspace: the license
  * key, a fleet container's installation credential, and everything a hosting
- * control plane injects under `OMB_CLOUD_` (the readiness token, the bootstrap
+ * control plane injects under `JLFBOT_CLOUD_` (the readiness token, the bootstrap
  * document and its gateway token). Only this process reads them. The prefix
- * ends in an underscore on purpose: `OMB_CLOUDFLARED_PATH` is not one of them.
+ * ends in an underscore on purpose: `JLFBOT_CLOUDFLARED_PATH` is not one of them.
  * What an engine is meant to receive arrives under another name through its
  * instance environment (the hosted model token as ANTHROPIC_API_KEY or
- * OPENMAUSBOT_COMPANY_API_KEY), so nothing here is ever an engine's input. */
-export const CONTROL_PLANE_ENV = ["OMB_LICENSE_KEY", "OMB_INSTALLATION_CREDENTIAL"] as const;
-export const CONTROL_PLANE_ENV_PREFIX = "OMB_CLOUD_";
+ * JLFBOT_COMPANY_API_KEY), so nothing here is ever an engine's input. */
+export const CONTROL_PLANE_ENV = ["JLFBOT_LICENSE_KEY", "JLFBOT_INSTALLATION_CREDENTIAL"] as const;
+export const CONTROL_PLANE_ENV_PREFIX = "JLFBOT_CLOUD_";
 
 /** Drop every control-plane secret from a child-process env (in place). No
  * driver allowlist re-admits these. Names compare case-insensitively because
@@ -968,7 +969,7 @@ export function onConfigSaved(listener: (before: JsonObject, after: JsonObject) 
   return () => { configSaveListeners.delete(listener); };
 }
 
-/** Merge a partial config into ~/.openmausbot/config.json (secrets never
+/** Merge a partial config into ~/.jlfbot/config.json (secrets never
  * echoed back — callers report configured-or-not booleans only). */
 export function saveConfig(
   patch: Partial<Omit<AppConfig, "threads">> & { threads?: z.output<typeof threadsPatchSchema> },

@@ -171,7 +171,7 @@ export function beatWidth(beat: BeatId): number {
 
 /** The Admin portal the welcome flow signs in to. Another address is an
  * advanced choice made in Settings → Organisation, never here. */
-export const DEFAULT_ADMIN_ORIGIN = "https://admin.openmausbot.com";
+export const DEFAULT_ADMIN_ORIGIN = "https://admin.jlfbot.example.com";
 
 /** The organisation sign-in bridge, when this window may offer it. Only the
  * packaged local desktop has one; a desktop acting as a remote client of

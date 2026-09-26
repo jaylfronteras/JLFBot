@@ -1,3 +1,16 @@
+JLFBot
+Copyright 2026 Jejomar Fronteras (modifications)
+
+JLFBot is a modified fork of OpenMausBot by milind-soni (Milind Soni and
+OpenMausBot contributors), https://github.com/milind-soni/OpenMausBot,
+used under the Apache License, Version 2.0. It has been renamed, and
+upstream-only services, telemetry, release infrastructure and the
+source-available enterprise/ directory have been removed.
+
+The original OpenMausBot notice follows.
+
+---
+
 OpenMausBot
 Copyright 2026 Milind Soni and OpenMausBot contributors
 

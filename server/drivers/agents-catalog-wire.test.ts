@@ -60,26 +60,26 @@ function profiles(): Record<string, Profile> {
           all[name] = {
             family: room ? "room" : "direct",
             env: {
-              OMB_ROOM_TURN: flag(room),
-              OMB_OWN_THREAD_CREATION: flag(ownThread),
-              OMB_SKILL_AUTHORING_ENABLED: flag(skills),
-              OMB_SHARED_COMPUTERS_ENABLED: flag(shared),
+              JLFBOT_ROOM_TURN: flag(room),
+              JLFBOT_OWN_THREAD_CREATION: flag(ownThread),
+              JLFBOT_SKILL_AUTHORING_ENABLED: flag(skills),
+              JLFBOT_SHARED_COMPUTERS_ENABLED: flag(shared),
             },
           };
         }
       }
     }
   }
-  all.external = { family: "external", env: { OMB_EXTERNAL_RUNTIME: "1" } };
+  all.external = { family: "external", env: { JLFBOT_EXTERNAL_RUNTIME: "1" } };
   // The external switch wins over every other one; pin that it still does.
   all["external+everything"] = {
     family: "external",
     env: {
-      OMB_EXTERNAL_RUNTIME: "1",
-      OMB_ROOM_TURN: "1",
-      OMB_OWN_THREAD_CREATION: "1",
-      OMB_SKILL_AUTHORING_ENABLED: "1",
-      OMB_SHARED_COMPUTERS_ENABLED: "1",
+      JLFBOT_EXTERNAL_RUNTIME: "1",
+      JLFBOT_ROOM_TURN: "1",
+      JLFBOT_OWN_THREAD_CREATION: "1",
+      JLFBOT_SKILL_AUTHORING_ENABLED: "1",
+      JLFBOT_SHARED_COMPUTERS_ENABLED: "1",
     },
   };
   return all;
@@ -116,11 +116,11 @@ const RPC_PREFIX = '{"jsonrpc":"2.0","id":1,"result":';
 /** The exact `result` text of one tools/list answer from a freshly spawned
  * proxy. Sliced out of the raw stdout line, never re-serialized. */
 async function toolsListWire(entry: string, env: Record<string, string>): Promise<string> {
-  // A developer shell (or an OpenMausBot turn running this suite) can carry
-  // OMB_* switches of its own; the profile must be the only source.
-  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OMB_")));
+  // A developer shell (or an JLFBot turn running this suite) can carry
+  // JLFBOT_* switches of its own; the profile must be the only source.
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("JLFBOT_")));
   const child = spawn(process.execPath, [entry], {
-    env: { ...inherited, OMB_HARNESS_URL: "http://127.0.0.1:9", OMB_BOT_ID: "bot-golden", OMB_THREAD_ID: "thread-golden", OMB_COMMS_TOKEN: "unused", OMB_TURN_DEPTH: "0", ...env },
+    env: { ...inherited, JLFBOT_HARNESS_URL: "http://127.0.0.1:9", JLFBOT_BOT_ID: "bot-golden", JLFBOT_THREAD_ID: "thread-golden", JLFBOT_COMMS_TOKEN: "unused", JLFBOT_TURN_DEPTH: "0", ...env },
     stdio: ["pipe", "pipe", "inherit"],
   });
   try {
@@ -211,7 +211,7 @@ describe("agents proxy tools/list golden", () => {
 
   it("is what the catalog module computes in-process, so another front end mounts the same tools", () => {
     for (const [name, profile] of Object.entries(PROFILES)) {
-      const tools = availableTools(catalogProfileFromEnv({ OMB_BOT_ID: "bot-golden", ...profile.env }));
+      const tools = availableTools(catalogProfileFromEnv({ JLFBOT_BOT_ID: "bot-golden", ...profile.env }));
       expect(JSON.stringify({ tools }), name).toBe(wires[name]);
     }
   });
@@ -248,7 +248,7 @@ describe("agents proxy tools/list from the packaged bundle", () => {
     // dist-server/ that the desktop app, the npm package and the container
     // image all copy whole. The proxy runs as its own process there, so every
     // module it imports has to be inlined into this one file.
-    directory = realpathSync(mkdtempSync(join(tmpdir(), "omb-agents-proxy-bundle-")));
+    directory = realpathSync(mkdtempSync(join(tmpdir(), "jlfbot-agents-proxy-bundle-")));
     await build({
       entryPoints: [PROXY_SOURCE],
       bundle: true,

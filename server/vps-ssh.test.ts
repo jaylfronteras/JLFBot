@@ -6,7 +6,7 @@ import { prepareVpsSsh, vpsSshConfigText } from "./vps-ssh.ts";
 
 const dirs: string[] = [];
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
-const scratch = () => { const dir = mkdtempSync(join(tmpdir(), "omb-vps-ssh-")); dirs.push(dir); return dir; };
+const scratch = () => { const dir = mkdtempSync(join(tmpdir(), "jlfbot-vps-ssh-")); dirs.push(dir); return dir; };
 
 describe("VPS SSH connection sharing supplied by the app", () => {
   it("does nothing on Windows, where OpenSSH has no connection sharing", () => {

@@ -48,10 +48,10 @@ export type RoutineScheduleInput =
   | Exclude<RoutineSchedule, RoutineIntervalSchedule>
   | RoutineIntervalScheduleInput;
 
-/** `cloud` runs the agent itself inside the bot's Box VM. `maus` keeps
- * using the provider selected on the MAUS and only borrows its configured
+/** `cloud` runs the agent itself inside the bot's Box VM. `jlf` keeps
+ * using the provider selected on the JLF and only borrows its configured
  * computer tools, if any. */
-export type RoutineRunOn = "maus" | "cloud";
+export type RoutineRunOn = "jlf" | "cloud";
 export type RoutineTarget = "bot" | "room-goal";
 export type RoutineGoalStatus = Exclude<GroupGoalRunStatus, "working">;
 
@@ -708,8 +708,8 @@ function sanitizeInput(input: RoutineInput, after: number): Omit<Routine, "id" |
   if (target !== "bot" && target !== "room-goal") throw new Error("Choose a valid routine target");
   const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
   if (target === "room-goal" && !groupId) throw new Error("Choose a room for this goal");
-  const runOn = input.runOn ?? "maus";
-  if (runOn !== "maus" && runOn !== "cloud") throw new Error("Choose where this routine runs");
+  const runOn = input.runOn ?? "jlf";
+  if (runOn !== "jlf" && runOn !== "cloud") throw new Error("Choose where this routine runs");
   const attachments = cleanAttachments(input.attachments);
   const timeoutMinutes = cleanTimeoutMinutes(input.timeoutMinutes);
   if (target === "room-goal" && runOn === "cloud") {
@@ -772,7 +772,7 @@ export class RoutineManager {
               schedule,
               target,
               groupId: loadGroupId(routine.groupId, target),
-              runOn: routine.runOn ?? "maus",
+              runOn: routine.runOn ?? "jlf",
               timeoutMinutes: loadTimeoutMinutes(routine.timeoutMinutes),
               attachments: loadAttachments(routine.attachments),
               sourceThreadId: persistedSourceThreadId.parse(routine.sourceThreadId),
@@ -794,7 +794,7 @@ export class RoutineManager {
               target,
               goalStatus: loadGoalStatus(run.goalStatus, target),
               groupId: loadGroupId(run.groupId, target),
-              runOn: run.runOn ?? "maus",
+              runOn: run.runOn ?? "jlf",
               timeoutMinutes: loadTimeoutMinutes(run.timeoutMinutes),
               attachments: loadAttachments(run.attachments),
               sourceThreadId: persistedSourceThreadId.parse(run.sourceThreadId),
@@ -844,7 +844,7 @@ export class RoutineManager {
       if (run.status === "running" || run.status === "waiting") {
         run.status = "failed";
         if (run.target === "room-goal") run.goalStatus = "failed";
-        run.error = "OpenMausBot restarted while this routine was running";
+        run.error = "JLFBot restarted while this routine was running";
         run.attention = undefined;
         run.finishedAt = this.now();
         recovered.push(cloneRun(run));
@@ -1137,7 +1137,7 @@ export class RoutineManager {
         if (run.target === "room-goal" && run.groupId) {
           void this.options.interruptGoal?.(run.groupId, run.threadId).catch(() => {});
         } else {
-          void this.options.interruptTurn?.(run.botId, run.threadId, run.runOn ?? "maus").catch(() => {});
+          void this.options.interruptTurn?.(run.botId, run.threadId, run.runOn ?? "jlf").catch(() => {});
         }
       }
       changed = true;
@@ -1226,7 +1226,7 @@ export class RoutineManager {
     const existing = this.webhookRunReceipt(input.webhookId, input.deliveryId);
     if (existing) return existing;
     if (this.options.botState(input.botId) === "missing") {
-      throw Object.assign(new Error("The assigned MAUS no longer exists"), { status: 410 });
+      throw Object.assign(new Error("The assigned JLF no longer exists"), { status: 410 });
     }
     const run: RoutineRun = {
       id: randomUUID(),
@@ -1332,7 +1332,7 @@ export class RoutineManager {
       if (run.target === "room-goal" && run.groupId) {
         await this.options.interruptGoal?.(run.groupId, run.threadId).catch(() => {});
       } else {
-        await this.options.interruptTurn?.(run.botId, run.threadId, run.runOn ?? "maus").catch(() => {});
+        await this.options.interruptTurn?.(run.botId, run.threadId, run.runOn ?? "jlf").catch(() => {});
       }
     }
     queueMicrotask(() => void this.tick());
@@ -1406,7 +1406,7 @@ export class RoutineManager {
             detail,
           }).catch(() => {});
         } else {
-          await this.options.interruptTurn?.(run.botId, threadId, run.runOn ?? "maus").catch(() => {});
+          await this.options.interruptTurn?.(run.botId, threadId, run.runOn ?? "jlf").catch(() => {});
         }
       }
       const dueRoutines = this.routines.filter(
@@ -1569,7 +1569,7 @@ export class RoutineManager {
               run.botId,
               task.threadId,
               composeExecutionPrompt(prompt, run.attachments, this.continuityCarry(run)),
-              run.runOn ?? "maus",
+              run.runOn ?? "jlf",
               triggerSource,
               (message) => this.failThread(task.threadId, message),
             );
@@ -1756,7 +1756,7 @@ export class RoutineManager {
       target: routine.target,
       groupId: routine.groupId,
       botId: routine.botId,
-      runOn: routine.runOn ?? "maus",
+      runOn: routine.runOn ?? "jlf",
       scheduledFor,
       status: "queued",
       manual,

@@ -4,10 +4,10 @@ import { runMcpBridge } from "./mcp-bridge.ts";
 import { augmentedPath } from "./env-path.ts";
 
 const {
-  OMB_CUA_COMMAND: command,
-  OMB_CUA_ARGS: encodedArgs,
-  OMB_CONTROL_URL: url,
-  OMB_CONTROL_TOKEN: token,
+  JLFBOT_CUA_COMMAND: command,
+  JLFBOT_CUA_ARGS: encodedArgs,
+  JLFBOT_CONTROL_URL: url,
+  JLFBOT_CONTROL_TOKEN: token,
   ...childEnv
 } = process.env;
 

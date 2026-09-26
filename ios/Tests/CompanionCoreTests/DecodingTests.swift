@@ -597,7 +597,7 @@ final class DecodingTests: XCTestCase {
 
     func testDecodesThePairResponse() throws {
         let paired = try decode(PairResponse.self, "pair-response")
-        XCTAssertTrue(paired.token.hasPrefix("omb_"))
+        XCTAssertTrue(paired.token.hasPrefix("jlf_"))
         XCTAssertEqual(paired.device.name, "Ada's iPhone")
         XCTAssertFalse(paired.serverName.isEmpty)
     }
@@ -605,7 +605,7 @@ final class DecodingTests: XCTestCase {
     func testMalformedAdvisoryEndpointDoesNotDiscardAPairedToken() throws {
         let json = """
         {
-          "token":"omb_device",
+          "token":"jlf_device",
           "device":{"id":"d1","name":"Ada's iPhone","createdAt":1,"lastSeenAt":1},
           "serverName":"Ada's Mac",
           "hosts":["192.168.1.42"],
@@ -619,7 +619,7 @@ final class DecodingTests: XCTestCase {
 
         let paired = try JSONDecoder().decode(PairResponse.self, from: Data(json.utf8))
 
-        XCTAssertEqual(paired.token, "omb_device")
+        XCTAssertEqual(paired.token, "jlf_device")
         XCTAssertEqual(paired.hosts, ["192.168.1.42"])
         XCTAssertEqual(paired.endpoints?.map(\.kind), [.hosted, .lan])
     }
@@ -629,7 +629,7 @@ final class DecodingTests: XCTestCase {
         // desktop changes in lockstep; the client passes them through.
         XCTAssertEqual(
             try decode(APIErrorBody.self, "unauthorized").error,
-            "pair this device from Phone settings in OpenMausBot on your computer"
+            "pair this device from Phone settings in JLFBot on your computer"
         )
         XCTAssertFalse(try decode(APIErrorBody.self, "forbidden").error.isEmpty)
         XCTAssertEqual(

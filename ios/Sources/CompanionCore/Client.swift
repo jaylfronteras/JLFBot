@@ -46,8 +46,8 @@ public struct Connection: Codable, Hashable, Identifiable, Sendable {
     /// credential envelope and checked against the authenticated bearer.
     public var companionDeviceId: String?
     /// Set when this connection was paired against the server's own sessions
-    /// (`openmausbot serve` / the Docker stack) rather than the desktop's
-    /// companion sidecar: the bearer is an `omb_sess_` token whose scopes
+    /// (`jlfbot serve` / the Docker stack) rather than the desktop's
+    /// companion sidecar: the bearer is an `jlf_sess_` token whose scopes
     /// say what the app may administer. Absent on connections saved before
     /// servers could be paired directly.
     public var serverEnvironmentId: String?
@@ -96,7 +96,7 @@ public struct Connection: Codable, Hashable, Identifiable, Sendable {
     /// sections, change models, generate avatars, connect apps, open cloud
     /// desktops. A companion pairing always may — the sidecar applies its
     /// own policy to each request. A server session may only with the
-    /// `admin` scope (`openmausbot pair` grants it; `--client` does not);
+    /// `admin` scope (`jlfbot pair` grants it; `--client` does not);
     /// the server answers 403 otherwise, so the app hides those controls
     /// instead of offering buttons that can only fail.
     public var canAdminister: Bool {
@@ -240,7 +240,7 @@ public struct PairingInvite: Equatable, Sendable {
 
     public static func parse(_ url: URL) -> PairingInvite? {
         if let server = parseServerLink(url) { return server }
-        guard url.scheme?.lowercased() == "openmausbot",
+        guard url.scheme?.lowercased() == "jlfbot",
               url.host?.lowercased() == "pair",
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return nil }
@@ -319,7 +319,7 @@ public struct PairingInvite: Equatable, Sendable {
     }
 
     /// `https://host/pair#code=ABCD-EFGH-JKLM`: the link a server prints
-    /// (`openmausbot serve`, `openmausbot pair`, the Docker stack). It pairs
+    /// (`jlfbot serve`, `jlfbot pair`, the Docker stack). It pairs
     /// against the server's own sessions, not the companion sidecar. The code
     /// rides in the fragment, which never reaches a server in a request, and
     /// the server takes it with or without dashes.
@@ -361,7 +361,7 @@ public struct PairingInvite: Equatable, Sendable {
     }
 
     /// A server pairing code, normalized: exactly 12 symbols from the
-    /// server's alphabet, dashes optional. Six-digit codes and `omb_pair_`
+    /// server's alphabet, dashes optional. Six-digit codes and `jlf_pair_`
     /// tokens are the companion's and return nil. So does a code with a
     /// character the alphabet does not have — the server would refuse it
     /// and count the attempt towards its lockout, so it is refused here,
@@ -374,9 +374,9 @@ public struct PairingInvite: Equatable, Sendable {
 
     private static func credential(from values: [String: String]) -> String? {
         if let token = values["token"] {
-            guard token.hasPrefix("omb_pair_"),
+            guard token.hasPrefix("jlf_pair_"),
                   token.utf8.count == 52,
-                  token.dropFirst("omb_pair_".count).utf8.allSatisfy({
+                  token.dropFirst("jlf_pair_".count).utf8.allSatisfy({
                       (48...57).contains($0) || (65...90).contains($0) ||
                       (97...122).contains($0) || $0 == 45 || $0 == 95
                   })
@@ -416,7 +416,7 @@ public struct PairingRouteError: Error, LocalizedError, Equatable, Sendable {
 
     public var errorDescription: String? {
         let routes = attemptedHosts.joined(separator: ", ")
-        return "Couldn’t reach this computer through any available route (\(routes)). Keep Phone access turned on in OpenMausBot, then try again."
+        return "Couldn’t reach this computer through any available route (\(routes)). Keep Phone access turned on in JLFBot, then try again."
     }
 }
 
@@ -746,7 +746,7 @@ public struct CompanionClient: Sendable {
     /// The server's public descriptor: reachable before pairing, and the way
     /// to notice that the address now belongs to a different server.
     public func environment() async throws -> ServerEnvironment {
-        try await send(makeRequest("GET", "/.well-known/openmausbot/environment"), as: ServerEnvironment.self)
+        try await send(makeRequest("GET", "/.well-known/jlfbot/environment"), as: ServerEnvironment.self)
     }
 
     /// End this session on the server (server-paired connections only).
@@ -762,7 +762,7 @@ public struct CompanionClient: Sendable {
     /// that exact route is the user's preferred, explicit choice; neither a
     /// pairing credential nor the later bearer token is sprayed onto the
     /// current wifi merely because a private address was once advertised.
-    /// Only the first response that identifies itself as OpenMausBot receives
+    /// Only the first response that identifies itself as JLFBot receives
     /// the one-time pairing POST. The request id makes that redemption safely
     /// replayable by newer desktop builds if its response is lost in transit.
     public static func pairFirstReachable(
@@ -853,7 +853,7 @@ public struct CompanionClient: Sendable {
             guard !Task.isCancelled,
                   let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode),
-                  try JSONDecoder().decode(HealthIdentity.self, from: data).app == "openmausbot"
+                  try JSONDecoder().decode(HealthIdentity.self, from: data).app == "jlfbot"
             else { return false }
             return true
         } catch {
@@ -1457,7 +1457,7 @@ public struct CompanionClient: Sendable {
             guard message?.localizedCaseInsensitiveContains(Self.alreadyDrainedQueueMessage) == true else {
                 throw APIError.status(
                     code: 404,
-                    message: "This computer is too old to take back a queued message. Update OpenMausBot on it."
+                    message: "This computer is too old to take back a queued message. Update JLFBot on it."
                 )
             }
         }

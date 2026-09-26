@@ -9,8 +9,8 @@
 // (initialize, authenticate) and the native session are established once,
 // and later turns prompt the live session directly instead of paying the
 // full handshake per message. The pool mirrors the Claude driver: a session
-// closes after OMB_ACP_SESSION_IDLE_MS of quiet (default 10 minutes, floored
-// by OMB_ACP_SESSION_IDLE_MIN_MS default 10s), when the spawn contract
+// closes after JLFBOT_ACP_SESSION_IDLE_MS of quiet (default 10 minutes, floored
+// by JLFBOT_ACP_SESSION_IDLE_MIN_MS default 10s), when the spawn contract
 // changes, when the child crashes, when an interrupt's cancel goes
 // unanswered, and on stopAll/dispose. A resume cursor left by an earlier
 // session resumes through session/load|resume when the process had to
@@ -306,10 +306,10 @@ export interface AcpSupport {
 }
 
 const envOr = (key: string, fallback: number): number => Number(process.env[key] ?? fallback);
-const INIT_TIMEOUT = envOr("OPENMAUS_ACP_INIT_TIMEOUT_MS", 300_000);
-const SESSION_CONFIG_TIMEOUT = envOr("OPENMAUS_ACP_SESSION_CONFIG_TIMEOUT_MS", 300_000); // configureSession's per-request default
-const NEW_SESSION_TIMEOUT = envOr("OPENMAUS_ACP_NEW_SESSION_TIMEOUT_MS", 300_000);
-const LOAD_SESSION_TIMEOUT = envOr("OPENMAUS_ACP_LOAD_SESSION_TIMEOUT_MS", 120_000); // history replay on a long thread is slow
+const INIT_TIMEOUT = envOr("JLFBOT_ACP_INIT_TIMEOUT_MS", 300_000);
+const SESSION_CONFIG_TIMEOUT = envOr("JLFBOT_ACP_SESSION_CONFIG_TIMEOUT_MS", 300_000); // configureSession's per-request default
+const NEW_SESSION_TIMEOUT = envOr("JLFBOT_ACP_NEW_SESSION_TIMEOUT_MS", 300_000);
+const LOAD_SESSION_TIMEOUT = envOr("JLFBOT_ACP_LOAD_SESSION_TIMEOUT_MS", 120_000); // history replay on a long thread is slow
 // Read lazily (not at import) so a test can shorten the window. Unlike the
 // setup calls above, session/prompt legitimately streams for minutes, so a
 // wall-clock deadline would false-positive: this guard only trips when the
@@ -318,7 +318,7 @@ const LOAD_SESSION_TIMEOUT = envOr("OPENMAUS_ACP_LOAD_SESSION_TIMEOUT_MS", 120_0
 // disables the guard, restoring the pre-fix "hang until the user cancels"
 // behavior.
 const promptIdleTimeoutMs = (): number => {
-  const raw = process.env.OPENMAUS_ACP_PROMPT_IDLE_TIMEOUT_MS;
+  const raw = process.env.JLFBOT_ACP_PROMPT_IDLE_TIMEOUT_MS;
   if (raw === undefined) return 180_000;
   const ms = Number(raw);
   return Number.isFinite(ms) && ms > 0 ? ms : 0;
@@ -446,7 +446,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
   const SOURCE = support.nativeSource;
   const decodeConfig = decodeAcpConfig(support.defaultCli);
   const DENY_TIMEOUT_NOTE =
-    "OpenMausBot: nobody answered this permission request in time. Skip this action and finish what you can without it.";
+    "JLFBot: nobody answered this permission request in time. Skip this action and finish what you can without it.";
 
   return {
     driverKind: DRIVER_KIND,
@@ -507,11 +507,11 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
       // contract prompts the live session instead of paying the handshake
       // again. An idle session closes after SESSION_IDLE_MS of quiet.
       const sessions = new Map<string, AcpSession>();
-      const configuredIdleMinimum = Number(process.env.OMB_ACP_SESSION_IDLE_MIN_MS);
+      const configuredIdleMinimum = Number(process.env.JLFBOT_ACP_SESSION_IDLE_MIN_MS);
       const sessionIdleMinimum = Number.isFinite(configuredIdleMinimum) && configuredIdleMinimum > 0
         ? configuredIdleMinimum
         : 10_000;
-      const SESSION_IDLE_MS = Math.max(sessionIdleMinimum, Number(process.env.OMB_ACP_SESSION_IDLE_MS) || 10 * 60_000);
+      const SESSION_IDLE_MS = Math.max(sessionIdleMinimum, Number(process.env.JLFBOT_ACP_SESSION_IDLE_MS) || 10 * 60_000);
 
       const closeSession = (threadId: string, why: string) => {
         const session = sessions.get(threadId);
@@ -1355,7 +1355,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
                   "initialize",
                   {
                     protocolVersion: 1,
-                    clientInfo: { name: "openmausbot", version: "0.0.0" },
+                    clientInfo: { name: "jlfbot", version: "0.0.0" },
                     clientCapabilities: {
                       fs: {
                         readTextFile: support.clientFileSystem === true,
@@ -1582,7 +1582,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
               undefined,
               promptIdleMs,
               `${DRIVER_KIND} went fully silent ${Math.round(promptIdleMs / 1000)} s after the message and the turn was stopped. ` +
-                "Raise OPENMAUS_ACP_PROMPT_IDLE_TIMEOUT_MS if this model legitimately takes longer to answer.",
+                "Raise JLFBOT_ACP_PROMPT_IDLE_TIMEOUT_MS if this model legitimately takes longer to answer.",
             );
             // opencode 1.18.18 reports usage at the result root; grok and
             // gemini put it under _meta. Read both rather than lose the count.
@@ -1678,7 +1678,7 @@ export function createAcpDriver(support: AcpSupport): ProviderDriver<AcpConfig> 
             nativeImageInput: support.images === true,
             effortLevels: support.effortLevels,
             modelVariants: support.modelVariants === true,
-            // OpenMausBot supplies a per-bot approvalMode on every harness
+            // JLFBot supplies a per-bot approvalMode on every harness
             // turn, which safely overrides a legacy instance fullAuto value.
             // Direct adapter calls that omit it still fail closed in sendTurn.
             localComputerMcp: true,

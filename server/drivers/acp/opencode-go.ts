@@ -1,6 +1,6 @@
 // The maintained OpenCode CLI through its ACP stdio interface. OpenCode is
 // the harness; Zen, Go, OpenRouter, and user-configured/local providers are
-// models discovered from that harness rather than separate OpenMaus drivers.
+// models discovered from that harness rather than separate JLFBot drivers.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -382,7 +382,7 @@ const support = (loadCatalog: OpenCodeCatalogLoader): AcpSupport => ({
     // Scope native permissions to this child, not the user's OpenCode config.
     // A wildcard alone leaves OpenCode's more-specific external-directory and
     // read rules in place. Replace the built-in rules as well, including path
-    // maps, so Full means the same thing inside the provider and in OMB.
+    // maps, so Full means the same thing inside the provider and in JLFBOT.
     env.OPENCODE_PERMISSION = JSON.stringify(Object.fromEntries([
       "*", "external_directory", "read", "edit", "bash", "glob", "grep",
       "list", "task", "lsp", "skill", "webfetch", "websearch", "codesearch",

@@ -5,12 +5,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  # The merge queue runs CI on the PR merged onto the current main BEFORE it
-  # lands, so a PR that is green alone but red together with what just
-  # merged is stopped in the queue instead of on main (that shape reddened
-  # main twice in Sep 2026). Turning the queue on is a branch-ruleset
-  # setting; this trigger is what lets CI report on those runs.
-  merge_group:
 
 # least privilege: CI only reads the checkout, it never writes back
 permissions:
@@ -19,7 +13,7 @@ permissions:
 concurrency:
   # New main/PR pushes supersede older checks on the same ref, including
   # queued summary jobs. Keep merge-queue runs protected on their own refs.
-  group: ci-${{ github.event_name == 'merge_group' && github.event.merge_group.head_ref || github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
@@ -161,18 +155,11 @@ jobs:
         run: pnpm build:server && pnpm build:companion && pnpm exec electron scripts/smoke-phone-relay-auth.cjs
 
   gate:
-    # The branch ruleset requires exactly these three check names — they were
-    # the per-OS test job. Each now reports the combined result of every job
-    # above, so the requirement holds without a settings change. Once the
-    # ruleset requires this gate directly, collapse the matrix to one job.
-    name: typecheck + test (${{ matrix.os }})
-    needs: [static, vitest, packaged-server, windows-cua, electron-smokes]
-    # Still report failed/skipped dependencies, but don't keep a superseded
-    # workflow alive just to schedule its summary jobs.
+    # One summary check for branch protection: it passes only when every
+    # required job above passed.
+    name: all required checks
+    needs: [static, vitest, packaged-server, windows-cua, electron-smokes, package-linux]
     if: ${{ !cancelled() }}
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -202,12 +189,12 @@ jobs:
           node-version: 24
       - name: Install and reuse the pinned connector in an isolated fixture
         env:
-          OMB_ARM64_FIXTURE: ${{ runner.temp }}/omb-cloudflared-arm64
+          JLFBOT_ARM64_FIXTURE: ${{ runner.temp }}/jlfbot-cloudflared-arm64
         run: |
           node --input-type=module -e 'import assert from "node:assert/strict"; assert.equal(process.platform, "linux"); assert.equal(process.arch, "arm64");'
-          node scripts/prepare-cloudflared.mjs --current --root "$OMB_ARM64_FIXTURE"
-          node scripts/prepare-cloudflared.mjs --current --root "$OMB_ARM64_FIXTURE"
-          "$OMB_ARM64_FIXTURE/dist-native/cloudflared/linux-arm64/cloudflared" version
+          node scripts/prepare-cloudflared.mjs --current --root "$JLFBOT_ARM64_FIXTURE"
+          node scripts/prepare-cloudflared.mjs --current --root "$JLFBOT_ARM64_FIXTURE"
+          "$JLFBOT_ARM64_FIXTURE/dist-native/cloudflared/linux-arm64/cloudflared" version
 
   foss:
     needs: static
@@ -225,20 +212,18 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Delete the enterprise folder
-        run: rm -rf enterprise
       - run: pnpm typecheck
       - run: pnpm exec vitest run server/enterprise.test.ts server/brand.test.ts
       - name: The server boots and reports the open-source edition
         run: |
-          mkdir -p /tmp/omb-foss/home
-          HOME=/tmp/omb-foss/home OMB_DATA_DIR=/tmp/omb-foss/data OMB_PORT=18797 OMB_WEBHOOK_PORT=18796 \
-            OMB_BROWSER_CONNECTION=/tmp/omb-foss/browser-connection.json OMB_LICENSE_KEY=omb1.not.real \
-            node --experimental-strip-types server/index.ts > /tmp/omb-foss/server.log 2>&1 &
+          mkdir -p /tmp/jlfbot-foss/home
+          HOME=/tmp/jlfbot-foss/home JLFBOT_DATA_DIR=/tmp/jlfbot-foss/data JLFBOT_PORT=18797 JLFBOT_WEBHOOK_PORT=18796 \
+            JLFBOT_BROWSER_CONNECTION=/tmp/jlfbot-foss/browser-connection.json JLFBOT_LICENSE_KEY=omb1.not.real \
+            node --experimental-strip-types server/index.ts > /tmp/jlfbot-foss/server.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:18797/api/health >/dev/null && break; sleep 1; done
-          curl -sf http://127.0.0.1:18797/api/edition | tee /tmp/omb-foss/edition.json; echo
-          grep -q '"edition":"oss"' /tmp/omb-foss/edition.json
-          grep -q 'no enterprise layer exists' /tmp/omb-foss/edition.json
+          curl -sf http://127.0.0.1:18797/api/edition | tee /tmp/jlfbot-foss/edition.json; echo
+          grep -q '"edition":"oss"' /tmp/jlfbot-foss/edition.json
+          grep -q 'no enterprise layer exists' /tmp/jlfbot-foss/edition.json
           kill %1; wait %1 || true
 
   control-plane:
@@ -266,7 +251,7 @@ jobs:
     # docs/verification/chat-ui.md run by a machine. It downloads the pinned
     # agent-browser release (digest verified) and its Chrome, drives the real
     # <App/> against the isolated fake-engine fixture, and keeps the screenshot.
-    name: renderer smoke (control-omb ui, Ubuntu 24.04)
+    name: renderer smoke (control-jlfbot ui, Ubuntu 24.04)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -285,19 +270,19 @@ jobs:
         # This is Chrome's own documented fix for 23.10+; a developer machine
         # needs nothing, and the sandbox itself stays on.
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - name: Drive the real renderer through control-omb ui
+      - name: Drive the real renderer through control-jlfbot ui
         env:
-          OMB_UI_E2E: "1"
-          OMB_UI_EVIDENCE_DIR: .omb-scratch/verify-evidence
-        run: pnpm exec vitest run scripts/testing/control-omb-ui.e2e.test.ts scripts/testing/bot-tools-ui.e2e.test.ts scripts/testing/thinking-timer-ui.e2e.test.ts
+          JLFBOT_UI_E2E: "1"
+          JLFBOT_UI_EVIDENCE_DIR: .jlfbot-scratch/verify-evidence
+        run: pnpm exec vitest run scripts/testing/control-jlfbot-ui.e2e.test.ts scripts/testing/bot-tools-ui.e2e.test.ts scripts/testing/thinking-timer-ui.e2e.test.ts
       - name: Upload the renderer screenshot
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: control-omb-ui-chat-screenshot
+          name: control-jlfbot-ui-chat-screenshot
           path: |
-            .omb-scratch/verify-evidence/chat-ui.png
-            .omb-scratch/verify-evidence/thinking-timer-anchored.png
+            .jlfbot-scratch/verify-evidence/chat-ui.png
+            .jlfbot-scratch/verify-evidence/thinking-timer-anchored.png
           if-no-files-found: warn
           retention-days: 7
 
@@ -348,23 +333,23 @@ jobs:
           sudo chmod 4755 release/linux-unpacked/chrome-sandbox
           test "$(stat -c '%U:%G %a' release/linux-unpacked/chrome-sandbox)" = "root:root 4755"
       - name: Verify the installed browser with Ubuntu sandbox restrictions
-        run: node scripts/smoke-browser-bundle.mjs --resources /opt/OpenMausBot/resources
+        run: node scripts/smoke-browser-bundle.mjs --resources /opt/JLFBot/resources
       - name: Launch packaged app and verify lifecycle
         env:
-          OMB_KEEP_SMOKE_DIR: "1"
-          OMB_SMOKE_INSTALLED_DEB: "1"
+          JLFBOT_KEEP_SMOKE_DIR: "1"
+          JLFBOT_SMOKE_INSTALLED_DEB: "1"
         run: pnpm smoke:linux-package
       - name: Remove the installed upgrade fixture
         if: always()
-        run: sudo dpkg --purge openmausbot || true
+        run: sudo dpkg --purge jlfbot || true
       - name: Upload smoke diagnostics on failure
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: openmausbot-ubuntu-smoke-diagnostics
+          name: jlfbot-ubuntu-smoke-diagnostics
           path: |
-            /tmp/omb-linux-smoke-*
-            /tmp/omb-linux-smoke-runtime-*
+            /tmp/jlfbot-linux-smoke-*
+            /tmp/jlfbot-linux-smoke-runtime-*
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -387,8 +372,8 @@ jobs:
         run: |
           cd ios
           xcodebuild \
-            -project OpenMausCompanion.xcodeproj \
-            -scheme OpenMausCompanion \
+            -project JLFBotCompanion.xcodeproj \
+            -scheme JLFBotCompanion \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
@@ -400,7 +385,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-thread-ui-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/omb-ios-threads-*.xcresult
+          path: ${{ runner.temp }}/jlfbot-ios-threads-*.xcresult
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7

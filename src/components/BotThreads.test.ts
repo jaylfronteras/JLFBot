@@ -10,7 +10,7 @@ import { workingFolderLabel } from "./ComposerTray";
 vi.mock("./DesktopCapabilities", () => ({ useDesktopCapabilities: () => ({}) }));
 
 const bot: Bot = {
-  id: "maus", threadId: "idle", name: "Maus", title: "", description: "", notifications: true,
+  id: "jlf", threadId: "idle", name: "JLFBot", title: "", description: "", notifications: true,
   color: "green", unread: true, busy: true, activity: "working", messages: [],
   modelSelection: { instanceId: "fake", model: "test" },
   tasks: [
@@ -22,14 +22,14 @@ const bot: Bot = {
 
 describe("sidebar bot threads", () => {
   it("hides generated workspace IDs while retaining useful user-chosen folder names", () => {
-    expect(workingFolderLabel("/tmp/fixture/task-workspaces/maus/idle", "maus", "idle")).toBe("Thread workspace");
-    expect(workingFolderLabel("C:\\fixture\\task-workspaces\\maus\\idle\\", "maus", "idle")).toBe("Thread workspace");
-    expect(workingFolderLabel("/Users/example/Projects/Website/", "maus", "idle")).toBe("Website");
-    expect(workingFolderLabel("/Users/example/task-workspaces/notes", "maus", "idle")).toBe("notes");
+    expect(workingFolderLabel("/tmp/fixture/task-workspaces/jlf/idle", "jlf", "idle")).toBe("Thread workspace");
+    expect(workingFolderLabel("C:\\fixture\\task-workspaces\\jlf\\idle\\", "jlf", "idle")).toBe("Thread workspace");
+    expect(workingFolderLabel("/Users/example/Projects/Website/", "jlf", "idle")).toBe("Website");
+    expect(workingFolderLabel("/Users/example/task-workspaces/notes", "jlf", "idle")).toBe("notes");
   });
   it("shows indented named threads with separate presence and a usable New thread action", () => {
     const markup = renderToStaticMarkup(createElement(StoreProvider, null, createElement(BotThreadList, { bot, selected: true })));
-    expect(markup).toContain('aria-label="Maus threads"');
+    expect(markup).toContain('aria-label="JLFBot threads"');
     expect(markup).toContain('data-sidebar-thread-row="idle" aria-current="page"');
     expect(markup).toContain(`Long research · ${formatUpdatedAt(2)} · Working`);
     expect(markup).toContain(`Needs approval · ${formatUpdatedAt(3)} · Waiting · Unread`);

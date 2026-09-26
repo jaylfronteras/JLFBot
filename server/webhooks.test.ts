@@ -8,7 +8,7 @@ import { WebhookManager, type WebhookManagerOptions } from "./webhooks.ts";
 const dirs: string[] = [];
 
 function harness() {
-  const dir = mkdtempSync(join(tmpdir(), "omb-webhooks-"));
+  const dir = mkdtempSync(join(tmpdir(), "jlfbot-webhooks-"));
   dirs.push(dir);
   const file = join(dir, "webhooks.json");
   let now = new Date("2026-08-16T10:00:00.000Z").getTime();
@@ -51,7 +51,7 @@ function create(manager: WebhookManager) {
   return manager.create({
     name: "New lead",
     prompt: "Qualify the incoming lead and prepare a response",
-    botId: "maus-sales",
+    botId: "jlf-sales",
     runOn: "cloud",
   });
 }
@@ -63,7 +63,7 @@ afterEach(() => {
 describe("WebhookManager", () => {
   it("rejects malformed management input before it reaches stored state", () => {
     const h = harness();
-    expect(() => h.manager.create({ name: 42, prompt: "Review it", botId: "maus-1" })).toThrow("name");
+    expect(() => h.manager.create({ name: 42, prompt: "Review it", botId: "jlf-1" })).toThrow("name");
     const created = create(h.manager);
     expect(() => h.manager.update(created.webhook.id, { enabled: "yes" })).toThrow("enabled");
     expect(h.manager.list()).toHaveLength(1);
@@ -116,7 +116,7 @@ describe("WebhookManager", () => {
     expect(h.queued[0]).toMatchObject({
       webhookId: webhook.id,
       webhookName: "New lead",
-      botId: "maus-sales",
+      botId: "jlf-sales",
       runOn: "cloud",
       deliveryId: "evt-123",
     });
@@ -129,7 +129,7 @@ describe("WebhookManager", () => {
 
   it("posts the payload text to the bot's chat instead of queuing a task when delivery is \"post\"", () => {
     const h = harness();
-    const { webhook, secret } = h.manager.create({ name: "Brief", prompt: "", botId: "maus-1", delivery: "post" });
+    const { webhook, secret } = h.manager.create({ name: "Brief", prompt: "", botId: "jlf-1", delivery: "post" });
     const result = h.manager.receive(webhook.endpointId, secret, {
       payload: { text: "Morning brief: two calls today." },
       contentType: "application/json",
@@ -138,7 +138,7 @@ describe("WebhookManager", () => {
 
     expect(result).toEqual({ deliveryId: "evt-post-1", duplicate: false });
     expect(h.queued).toHaveLength(0);
-    expect(h.posted).toEqual([{ botId: "maus-1", text: "Morning brief: two calls today." }]);
+    expect(h.posted).toEqual([{ botId: "jlf-1", text: "Morning brief: two calls today." }]);
     expect(h.manager.list()[0]).toMatchObject({ delivery: "post", deliveryCount: 1 });
     // a repeat of the same delivery id is deduplicated like any other webhook
     expect(h.manager.receive(webhook.endpointId, secret, { payload: { text: "again" }, deliveryId: "evt-post-1" })).toMatchObject({ duplicate: true });
@@ -147,7 +147,7 @@ describe("WebhookManager", () => {
 
   it("rejects a post delivery instead of running a task when the server has no post sink", () => {
     const h = harness();
-    const { webhook, secret } = h.manager.create({ name: "Brief", prompt: "", botId: "maus-1", delivery: "post" });
+    const { webhook, secret } = h.manager.create({ name: "Brief", prompt: "", botId: "jlf-1", delivery: "post" });
     const without = new WebhookManager({ ...h.options, post: undefined });
     expect(() => without.receive(webhook.endpointId, secret, { payload: { text: "hello" }, deliveryId: "evt-post-2" }))
       .toThrow("cannot post");
@@ -157,7 +157,7 @@ describe("WebhookManager", () => {
 
   it("uses an authenticated task from the payload when default instructions are empty", () => {
     const h = harness();
-    const { webhook, secret } = h.manager.create({ name: "Direct tasks", prompt: "", botId: "maus-1" });
+    const { webhook, secret } = h.manager.create({ name: "Direct tasks", prompt: "", botId: "jlf-1" });
     h.manager.receive(webhook.endpointId, secret, { payload: { task: "Check the failed checkout test", error: "500" } });
 
     expect(h.queued[0]?.prompt).toContain("[AUTHENTICATED WEBHOOK TASK]");
@@ -170,7 +170,7 @@ describe("WebhookManager", () => {
     const { webhook, secret } = h.manager.create({
       name: "Verify me",
       prompt: "",
-      botId: "maus-1",
+      botId: "jlf-1",
       enabled: false,
       verificationPending: true,
     });
@@ -215,7 +215,7 @@ describe("WebhookManager", () => {
 
   it("filters event types, caps unfinished work, and rate-limits a noisy endpoint", () => {
     const h = harness();
-    const { webhook, secret } = h.manager.create({ name: "Builds", prompt: "Review it", botId: "maus-1", eventTypes: ["push"] });
+    const { webhook, secret } = h.manager.create({ name: "Builds", prompt: "Review it", botId: "jlf-1", eventTypes: ["push"] });
     expect(h.manager.receive(webhook.endpointId, secret, { payload: {}, eventName: "issues" })).toMatchObject({ ignored: true });
     expect(h.queued).toHaveLength(0);
 

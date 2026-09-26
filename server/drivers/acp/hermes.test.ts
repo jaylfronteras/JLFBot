@@ -16,7 +16,7 @@ import {
   hermesConfiguredModel,
 } from "./hermes.ts";
 
-describe("Hermes OpenMaus screenshot compatibility binding", () => {
+describe("Hermes JLFBot screenshot compatibility binding", () => {
   it("binds the exact leaf model for an injected local picker model", () => {
     const env = {
       [HERMES_OPENMAUS_SCREENSHOT_COMPAT]: undefined,
@@ -52,7 +52,7 @@ describe("hermesConfiguredModel", () => {
   });
 
   const home = (env: string, cfg?: string) => {
-    const root = mkdtempSync(join(tmpdir(), "omb-hermes-"));
+    const root = mkdtempSync(join(tmpdir(), "jlfbot-hermes-"));
     dirs.push(root);
     const h = join(root, ".hermes");
     mkdirSync(h, { recursive: true });
@@ -111,7 +111,7 @@ describe("hermesConfiguredModel", () => {
   });
 
   it("returns null when there is no .env and no config.yaml, leaving local-only setups unchanged", () => {
-    const root = mkdtempSync(join(tmpdir(), "omb-hermes-bare-"));
+    const root = mkdtempSync(join(tmpdir(), "jlfbot-hermes-bare-"));
     dirs.push(root);
     mkdirSync(join(root, ".hermes"), { recursive: true });
     expect(hermesConfiguredModel({ HERMES_HOME: join(root, ".hermes") })).toBeNull();
@@ -121,7 +121,7 @@ describe("hermesConfiguredModel", () => {
     // A Nous Portal user logs in via OAuth — no API key in .env, but
     // config.yaml exists with a default model. This is the most common
     // setup for `hermes setup` / `hermes login` users.
-    const root = mkdtempSync(join(tmpdir(), "omb-hermes-nous-"));
+    const root = mkdtempSync(join(tmpdir(), "jlfbot-hermes-nous-"));
     dirs.push(root);
     const h = join(root, ".hermes");
     mkdirSync(h, { recursive: true });
@@ -263,7 +263,7 @@ process.stdin.on("data", (chunk) => {
   ];
 
   function fakeCli(env: Record<string, string>): { cli: string; env: Record<string, string> } {
-    const home = mkdtempSync(join(tmpdir(), "omb-hermes-probe-"));
+    const home = mkdtempSync(join(tmpdir(), "jlfbot-hermes-probe-"));
     dirs.push(home);
     const cli = join(home, "fake-hermes.ts");
     writeFileSync(cli, FAKE_CLI_SOURCE, { mode: 0o755 });
@@ -280,7 +280,7 @@ process.stdin.on("data", (chunk) => {
   it("finds the catalog CLI on the supplied PATH, including a Windows npm shim", async () => {
     const { cli, env } = fakeCli({ [HERMES_ACP_MODELS_TIMEOUT_ENV]: "2000" });
     const root = dirname(cli);
-    const command = "omb-hermes-probe";
+    const command = "jlfbot-hermes-probe";
     if (process.platform === "win32") {
       writeFileSync(join(root, "probe.js"), FAKE_CLI_SOURCE);
       writeFileSync(join(root, `${command}.cmd`), '@echo off\nnode "%~dp0\\probe.js" %*\n');

@@ -268,7 +268,7 @@ function buildStar(w: number, h: number, points: number, inner: number): string 
 /* ------------------------------------------------------------------ catalog */
 
 /**
- * The shipped maus artwork, copied verbatim out of `DEFAULT_SILHOUETTE.body` in
+ * The shipped jlf artwork, copied verbatim out of `DEFAULT_SILHOUETTE.body` in
  * src/components/CursorAvatar.tsx. It is already cubics-only, so it is carried
  * across byte-for-byte rather than regenerated — the artwork is the spec here.
  *

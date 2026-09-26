@@ -4,7 +4,7 @@
 //
 // A pairing code is 12 characters from a 32-symbol alphabet with no 0/O/1/I
 // (60 bits), single use, five minutes. Exchanging it yields an opaque
-// session token (`omb_sess_…`, 256 bits) that lives 30 days, renewed on use
+// session token (`jlf_sess_…`, 256 bits) that lives 30 days, renewed on use
 // up to 180 days from pairing (`renew`); only its sha256 is stored. A stream ticket is a 5-minute single-use credential for the SSE
 // endpoint, because EventSource cannot set headers. Failed exchanges are
 // counted per source: five in a minute lock that source out for ten.
@@ -32,13 +32,13 @@ export function daysMs(value: string | undefined, fallbackDays: number): number 
 /** How long a session lives after its last renewal. A session used with half
  * the term or less left is renewed for the full term again (see `renew`), so
  * a device in regular use keeps working; one that goes quiet lapses.
- * OMB_SESSION_TTL_DAYS overrides the 30-day default. */
-export const SESSION_TTL_MS = daysMs(process.env.OMB_SESSION_TTL_DAYS, 30);
+ * JLFBOT_SESSION_TTL_DAYS overrides the 30-day default. */
+export const SESSION_TTL_MS = daysMs(process.env.JLFBOT_SESSION_TTL_DAYS, 30);
 /** The most a session may live from the day it was paired, however often it
  * is used. Renewal never pushes a session past this, so a stolen cookie has a
- * bounded life and every device re-pairs occasionally. OMB_SESSION_MAX_DAYS
+ * bounded life and every device re-pairs occasionally. JLFBOT_SESSION_MAX_DAYS
  * overrides the 180-day default. */
-export const SESSION_MAX_AGE_MS = daysMs(process.env.OMB_SESSION_MAX_DAYS, 180);
+export const SESSION_MAX_AGE_MS = daysMs(process.env.JLFBOT_SESSION_MAX_DAYS, 180);
 /** Renewal is due once half the term or less is left. */
 export const SESSION_RENEW_WHEN_LEFT_MS = SESSION_TTL_MS / 2;
 
@@ -144,7 +144,7 @@ export function generatePairingCode(): string {
 
 /** The prefix that tells the two encodings apart on the wire. A credential is
  * matched byte for byte; only a typed code is normalized. */
-export const PAIRING_CREDENTIAL_PREFIX = "omb_pair_";
+export const PAIRING_CREDENTIAL_PREFIX = "jlf_pair_";
 
 /** The same pairing window as a 256-bit secret, for a QR a native app scans
  * rather than a code a person reads out. 9 + 43 characters: the Android
@@ -395,7 +395,7 @@ export class SessionRegistry {
     }
     const [pairing] = this.pairings.splice(index, 1); // single use
     this.failures.delete(input.source);
-    const token = `omb_sess_${randomBytes(32).toString("base64url")}`;
+    const token = `jlf_sess_${randomBytes(32).toString("base64url")}`;
     const record: SessionRecord = {
       id: randomUUID(),
       tokenHash: sha256(token),
@@ -431,7 +431,7 @@ export class SessionRegistry {
   private issueAccount(input: { label: string; scopes: Scope[]; userId?: string; email?: string }, membershipAuthority?: "portal"): { token: string; session: PublicSession } {
     this.prune();
     const now = this.now();
-    const token = `omb_sess_${randomBytes(32).toString("base64url")}`;
+    const token = `jlf_sess_${randomBytes(32).toString("base64url")}`;
     const record: SessionRecord = {
       id: randomUUID(),
       tokenHash: sha256(token),
@@ -565,7 +565,7 @@ export class SessionRegistry {
     this.prune();
     const mine = [...this.tickets].filter(([, t]) => t.sessionId === sessionId).sort((a, b) => a[1].expiresAt - b[1].expiresAt);
     for (const [hash] of mine.slice(0, Math.max(0, mine.length - (MAX_STREAM_TICKETS_PER_SESSION - 1)))) this.tickets.delete(hash);
-    const ticket = `omb_tick_${randomBytes(24).toString("base64url")}`;
+    const ticket = `jlf_tick_${randomBytes(24).toString("base64url")}`;
     const expiresAt = this.now() + STREAM_TICKET_TTL_MS;
     this.tickets.set(sha256(ticket), { sessionId, expiresAt });
     return { ticket, expiresAt };

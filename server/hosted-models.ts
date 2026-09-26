@@ -6,7 +6,7 @@ import { hostedWorkspaceConfiguration } from "./enterprise.ts";
 import type { InstanceConfigMap, ModelSelection, ProviderInstance } from "./contracts.ts";
 import type { Store } from "./store.ts";
 
-export const HOSTED_MODEL_POLICY_HEADER = "X-Omb-Hosted-Model-Policy";
+export const HOSTED_MODEL_POLICY_HEADER = "X-Jlfbot-Hosted-Model-Policy";
 export const HOSTED_MODEL_SETUP_ERROR = "No company models are assigned to this workspace. Ask your administrator to enable model access in Admin.";
 export const HOSTED_MODEL_SELECTION_ERROR = "This model is not assigned to this workspace. Choose one of its company models.";
 export const HOSTED_PROVIDER_SETTINGS_ERROR = "Company models and provider accounts are managed in Admin.";
@@ -22,27 +22,27 @@ const providerFor = { claude: "anthropic", codex: "openai", opencode: "openroute
 /** Operator-only policy. An ordinary desktop has neither input and keeps its
  * personal providers. Partial policy configuration must never enable them. */
 export function hostedModelPolicy(dataDirectory: string, env: NodeJS.ProcessEnv = process.env) {
-  if (env.OMB_HOSTED_MODELS === undefined && env.OMB_HOSTED_MODEL_TOKEN === undefined) return null;
+  if (env.JLFBOT_HOSTED_MODELS === undefined && env.JLFBOT_HOSTED_MODEL_TOKEN === undefined) return null;
   const hosted = hostedWorkspaceConfiguration(env);
-  if (!hosted?.portalMembership || env.OMB_DESKTOP_PARENT === "1" || !/^omb_workspace_[A-Za-z0-9_-]{43}$/.test(env.OMB_HOSTED_MODEL_TOKEN ?? "")) {
+  if (!hosted?.portalMembership || env.JLFBOT_DESKTOP_PARENT === "1" || !/^jlf_workspace_[A-Za-z0-9_-]{43}$/.test(env.JLFBOT_HOSTED_MODEL_TOKEN ?? "")) {
     throw new Error("Hosted model access requires complete portal-managed workspace configuration.");
   }
   let catalog: HostedCatalog;
   try {
-    if (!env.OMB_HOSTED_MODELS || env.OMB_HOSTED_MODELS.length > 65536) throw new Error();
-    catalog = catalogSchema.parse(JSON.parse(env.OMB_HOSTED_MODELS));
+    if (!env.JLFBOT_HOSTED_MODELS || env.JLFBOT_HOSTED_MODELS.length > 65536) throw new Error();
+    catalog = catalogSchema.parse(JSON.parse(env.JLFBOT_HOSTED_MODELS));
   } catch { throw new Error("Invalid hosted model catalog."); }
   for (const key of ["anthropic", "openai", "openrouter"] as const) catalog[key] = [...new Set(catalog[key])];
-  const token = env.OMB_HOSTED_MODEL_TOKEN!;
+  const token = env.JLFBOT_HOSTED_MODEL_TOKEN!;
   const base = `${hosted.admin.origin}/api/gateway/${hosted.workspace}`;
   const assigned = (id: string): string[] => Object.hasOwn(providerFor, id) ? catalog[providerFor[id as keyof typeof providerFor]] : [];
   const allows = (selection: ModelSelection) => assigned(selection.instanceId).includes(selection.model);
   const normalized = (selection: ModelSelection): ModelSelection => {
-    if (selection.instanceId === "codex" && selection.model.startsWith("omb-managed-openai::")) {
-      return { ...selection, model: selection.model.slice("omb-managed-openai::".length) };
+    if (selection.instanceId === "codex" && selection.model.startsWith("jlfbot-managed-openai::")) {
+      return { ...selection, model: selection.model.slice("jlfbot-managed-openai::".length) };
     }
-    if (["opencode", "opencodeGo"].includes(selection.instanceId) && selection.model.startsWith("omb-managed-openrouter/")) {
-      return { instanceId: "opencode", model: selection.model.slice("omb-managed-openrouter/".length) };
+    if (["opencode", "opencodeGo"].includes(selection.instanceId) && selection.model.startsWith("jlfbot-managed-openrouter/")) {
+      return { instanceId: "opencode", model: selection.model.slice("jlfbot-managed-openrouter/".length) };
     }
     // This stable ID now uses the replay-based OpenAI-compatible driver,
     // which supports neither OpenCode variants nor native effort levels.
@@ -79,7 +79,7 @@ export function hostedModelPolicy(dataDirectory: string, env: NodeJS.ProcessEnv 
       // Saved instance commands are tenant-editable personal configuration.
       // Only the operator may replace the bundled executables (also how an
       // isolated verification fixture supplies its synthetic native engines).
-      const cli = (name: "CLAUDE" | "CODEX") => env[`OMB_HOSTED_${name}_CLI`]?.trim() || name.toLowerCase();
+      const cli = (name: "CLAUDE" | "CODEX") => env[`JLFBOT_HOSTED_${name}_CLI`]?.trim() || name.toLowerCase();
       if (catalog.anthropic.length) configs.claude = {
         driver: "claudeAgent", displayName: "Company · Claude",
         config: { cli: cli("CLAUDE"), managed: true, managedModels: catalog.anthropic, configDir: home("claude") },
@@ -91,12 +91,12 @@ export function hostedModelPolicy(dataDirectory: string, env: NodeJS.ProcessEnv 
       if (catalog.openai.length) configs.codex = {
         driver: "codex", displayName: "Company · Codex",
         config: { cli: cli("CODEX"), managed: { url: `${base}/openai/v1`, models: catalog.openai } },
-        environment: { OPENMAUSBOT_COMPANY_API_KEY: token, CODEX_HOME: home("codex") },
+        environment: { JLFBOT_COMPANY_API_KEY: token, CODEX_HOME: home("codex") },
       };
       if (catalog.openrouter.length) configs.opencode = {
         driver: "openai-compat", displayName: "Company · OpenRouter",
-        config: { url: `${base}/openrouter/v1`, apiKeyEnv: "OPENMAUSBOT_COMPANY_API_KEY", provider: "", model: catalog.openrouter[0], managedModels: catalog.openrouter },
-        environment: { OPENMAUSBOT_COMPANY_API_KEY: token },
+        config: { url: `${base}/openrouter/v1`, apiKeyEnv: "JLFBOT_COMPANY_API_KEY", provider: "", model: catalog.openrouter[0], managedModels: catalog.openrouter },
+        environment: { JLFBOT_COMPANY_API_KEY: token },
       };
       return configs;
     },

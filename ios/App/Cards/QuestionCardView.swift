@@ -30,7 +30,7 @@ struct QuestionCardView: View {
     @State private var sent: String?
     @FocusState private var otherFocused: Bool
 
-    private var tint: Color { MausPalette.color(chat.color) }
+    private var tint: Color { JlfPalette.color(chat.color) }
 
     private var card: OptionCard? { message.card }
     private var questions: [AskQuestion] { card?.questions ?? [] }

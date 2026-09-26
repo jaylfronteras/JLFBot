@@ -36,7 +36,7 @@ async function keyMaterial() {
   const keyId = createHash("sha256").update(raw).digest().subarray(0, 16).toString("base64url");
   return {
     publicKey: await suite.kem.deserializePublicKey(raw),
-    message: { type: "openmausbot:phone-secret-key", version: 1, keyId, privateKey },
+    message: { type: "jlfbot:phone-secret-key", version: 1, keyId, privateKey },
     keyId,
   };
 }
@@ -75,7 +75,7 @@ describe("PhoneSecretBridge", () => {
     const send = vi.fn((message: { requestId: string; value: string }) => {
       expect(message.value).toBe("swift-to-node-secret");
       queueMicrotask(() => bridge.receive({
-        type: "openmausbot:phone-secret-save-result",
+        type: "jlfbot:phone-secret-save-result",
         requestId: message.requestId,
         ok: true,
       }));
@@ -83,7 +83,7 @@ describe("PhoneSecretBridge", () => {
     });
     bridge = new PhoneSecretBridge(send, 200);
     bridge.receive({
-      type: "openmausbot:phone-secret-key",
+      type: "jlfbot:phone-secret-key",
       version: 1,
       keyId: "taWSR_nZ7ojlH_0Z3tar6Q",
       privateKey: {
@@ -117,7 +117,7 @@ describe("PhoneSecretBridge", () => {
       expect(message.value).toBe("elevenlabs-secret");
       expect(message.target).toBe("ttsKey");
       queueMicrotask(() => bridge.receive({
-        type: "openmausbot:phone-secret-save-result",
+        type: "jlfbot:phone-secret-save-result",
         requestId: message.requestId,
         ok: true,
       }));
@@ -188,7 +188,7 @@ describe("PhoneSecretBridge", () => {
     let bridge!: PhoneSecretBridge;
     bridge = new PhoneSecretBridge((message) => {
       queueMicrotask(() => bridge.receive({
-        type: "openmausbot:phone-secret-save-result",
+        type: "jlfbot:phone-secret-save-result",
         requestId: message.requestId,
         ok: false,
         error: "The operating-system credential store is unavailable",
@@ -220,7 +220,7 @@ describe("PhoneSecretBridge", () => {
     await started;
     await expect(bridge.provide(envelope)).rejects.toMatchObject({ status: 429 });
     bridge.receive({
-      type: "openmausbot:phone-secret-save-result",
+      type: "jlfbot:phone-secret-save-result",
       requestId: firstRequestId,
       ok: true,
     });

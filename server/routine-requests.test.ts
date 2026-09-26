@@ -64,7 +64,7 @@ function harness(
   autoApply?: (botId: string, threadId: string) => boolean,
 ) {
   const clock = { now: start };
-  const dir = mkdtempSync(join(tmpdir(), "omb-routine-request-"));
+  const dir = mkdtempSync(join(tmpdir(), "jlfbot-routine-request-"));
   tempDirs.push(dir);
   const routines = new RoutineManager({
     file: join(dir, "routines.json"),
@@ -918,7 +918,7 @@ describe("RoutineRequestService", () => {
     await service.propose({
       botId: "bot-a",
       threadId: "thread-a",
-      proposal: { action: "update", routineId: routine.id, changes: { runOn: "maus" } },
+      proposal: { action: "update", routineId: routine.id, changes: { runOn: "jlf" } },
     });
     await service.propose({
       botId: "bot-a",
@@ -1034,7 +1034,7 @@ describe("RoutineRequestService", () => {
       botId: "bot-a",
       name: "Morning brief",
       prompt: "Summarize the overnight support queue.",
-      runOn: "maus",
+      runOn: "jlf",
       enabled: true,
       schedule: { type: "daily", time: "09:00", weekdays: [1, 3] },
       durationMinutes: 5,
@@ -1578,7 +1578,7 @@ describe("RoutineRequestService", () => {
 describe("cross-bot routine targeting", () => {
   function targetedHarness(validateTarget?: (proposerBotId: string, target: { botId: string; name: string }) => string | null) {
     const clock = { now: Date.parse("2026-08-28T10:00:00Z") };
-    const dir = mkdtempSync(join(tmpdir(), "omb-routine-target-"));
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-routine-target-"));
     tempDirs.push(dir);
     const routines = new RoutineManager({
       file: join(dir, "routines.json"),

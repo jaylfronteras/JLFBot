@@ -13,9 +13,9 @@
   Independently paired devices remain under Remote access management.
 
 - On a workspace whose members the organisation's Admin manages
-  (`OMB_ADMIN_MEMBERSHIP=portal`) the card is read-only: who has signed in,
+  (`JLFBOT_ADMIN_MEMBERSHIP=portal`) the card is read-only: who has signed in,
   what they spent, and a **Manage people in Admin** link
-  (`<OMB_ADMIN_URL>/people?workspace=<slug>`, from `GET /api/config`
+  (`<JLFBOT_ADMIN_URL>/people?workspace=<slug>`, from `GET /api/config`
   `membership.peopleUrl`). Remote access there lists signed-in devices and
   offers no pairing code, since a hosted workspace refuses them.
 
