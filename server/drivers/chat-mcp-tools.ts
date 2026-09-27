@@ -6,6 +6,7 @@ import formats from "ajv-formats";
 import { stripControlPlaneEnv } from "../config.ts";
 import type { SendTurnInput } from "../contracts.ts";
 import { augmentedPath } from "../env-path.ts";
+import { openAICompatToolSchema } from "./openai-tool-schema.ts";
 import { killCliTree, spawnCli } from "../procs.ts";
 
 export interface ChatToolDefinition {
@@ -247,7 +248,7 @@ function toolImage(item: Record<string, unknown>): ChatToolImage | null {
 export async function mountChatTools(
   integrations: SendTurnInput["integrations"],
   signal: AbortSignal,
-  options?: { images?: boolean },
+  options?: { images?: boolean; sanitizeSchemas?: boolean },
 ): Promise<ChatToolSession> {
   const servers: Array<[string, Server]> = [];
   if (integrations?.agents) servers.push(["agents", integrations.agents]);
@@ -295,14 +296,15 @@ export async function mountChatTools(
         if (!object(tool) || typeof tool.name !== "string" || !tool.name.trim() || originalNames.has(tool.name)) throw new Error("MCP server advertised an invalid or duplicate tool name");
         originalNames.add(tool.name);
         if (definitions.length >= TOOL_COUNT) throw new Error("MCP tool count exceeds the 128-tool limit");
-        if (!object(tool.inputSchema) || tool.inputSchema.type !== "object") throw new Error("MCP tools require an object input schema");
-        if (Buffer.byteLength(JSON.stringify(tool.inputSchema)) > SCHEMA_BYTES) throw new Error("MCP tool schema exceeds the 64KB limit");
-        const schema = compileSchema(tool.inputSchema);
+        const parameters = options?.sanitizeSchemas ? openAICompatToolSchema(tool.inputSchema) : tool.inputSchema;
+        if (!object(parameters) || parameters.type !== "object") throw new Error("MCP tools require an object input schema");
+        if (Buffer.byteLength(JSON.stringify(parameters)) > SCHEMA_BYTES) throw new Error("MCP tool schema exceeds the 64KB limit");
+        const schema = compileSchema(parameters);
         const base = `${server}_${tool.name}`.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 64) || "mcp_tool";
         let name = base;
         for (let index = 2; registered.has(name); index += 1) { const suffix = `_${index}`; name = base.slice(0, 64 - suffix.length) + suffix; }
         registered.set(name, { client, name: tool.name, schema });
-        definitions.push({ type: "function", function: { name, description: typeof tool.description === "string" ? tool.description : "Configured MCP tool", parameters: tool.inputSchema } });
+        definitions.push({ type: "function", function: { name, description: typeof tool.description === "string" ? tool.description : "Configured MCP tool", parameters } });
         if (Buffer.byteLength(JSON.stringify(definitions)) > CATALOG_BYTES) throw new Error("MCP tool catalog exceeds the 1MB limit");
       }
     }

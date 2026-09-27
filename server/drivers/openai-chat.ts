@@ -126,6 +126,8 @@ interface RuntimeOptions<Config> {
   retryScale?: number;
   /** Explicit text-only mode for endpoints/models that cannot accept tools. */
   tools?: boolean;
+  /** Custom OpenAI-compatible endpoints only. Grok and MiniMax keep the raw schema. */
+  sanitizeToolSchemas?: boolean;
 }
 
 const usageFrom = (usage: CompletionJson["usage"]): Usage | null =>
@@ -396,7 +398,7 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
         tools = await mountChatTools(
           options.tools === false ? undefined : turn.integrations,
           abort.signal,
-          { images: vision && options.tools !== false },
+          { images: vision && options.tools !== false, sanitizeSchemas: options.sanitizeToolSchemas === true },
         );
         for (let round = 0; round < 16; round++) {
           abort.signal.throwIfAborted();

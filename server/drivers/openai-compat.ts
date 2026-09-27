@@ -212,6 +212,7 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
       reasoning: true,
       billing: "metered",
       includeUsageInCompleted: true,
+      sanitizeToolSchemas: true,
       nativeLog: {
         source: "openai-compat.chat.completions",
         outgoing: (_turn, messages, model) => ({ model, messageCount: messages.length }),
