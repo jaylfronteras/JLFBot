@@ -18619,7 +18619,7 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
             return json(res, 400, { error: "Image support can be set on custom OpenAI-compatible engines only." });
           }
           try {
-            entry.config = mergeImageModels({ ...(entry.config as Record<string, unknown> ?? {}) }, body.modelImages);
+            entry.config = mergeImageModels({ ...(entry.config as Record<string, unknown>) }, body.modelImages);
           } catch (error) {
             return json(res, 400, { error: error instanceof Error ? error.message : "Invalid image support setting." });
           }

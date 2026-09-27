@@ -80,3 +80,21 @@ Set `tools` back to `true` to enable discovery and execution. This affects all
 bots using the instance; use separate configured instances for models with
 different tool support. A model response or HTTP error never silently disables
 tools. No fallback replays a requested operation without its tools.
+
+## Per-model images
+
+Image input is off until the owner marks that model. The acceptance test
+`server/openai-vision.e2e.test.ts` uses the same isolated harness and a
+loopback chat provider. It uploads one PNG, marks only `fixture-vision`, and
+checks the provider request:
+
+- the marked model receives an OpenAI `image_url` part
+- `fixture-text` on the same engine stays a plain string
+- image support cannot be set on a non-OpenAI-compatible instance
+
+```sh
+pnpm exec vitest run server/openai-vision.e2e.test.ts
+```
+
+Settings → Engines, the composer paste control, and the Computer panel are
+not driven by this recipe. Those gates are covered by the client unit tests.

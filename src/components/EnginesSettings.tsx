@@ -346,10 +346,11 @@ function EngineRow({ instance }: { instance: InstanceInfo }) {
 
 export function EnginesSettings() {
   const { state } = useStore();
-  // every KNOWN-driver instance has cliDefault; unknown-driver shadows have
-  // neither unless an override was set. Including them keeps a Reset-able row
-  // (and a Set CLI… path) for engines the running build doesn't recognize.
-  const rows = state.instances.filter((i) => i.readOnly || i.cli !== undefined || i.cliDefault !== undefined || i.snapshot.state === "unavailable");
+  // CLI engines have cli or cliDefault. Unknown-driver shadows keep a
+  // Reset-able row when an override was set or the snapshot is unavailable.
+  // A custom OpenAI-compatible engine has neither CLI field, and a working
+  // one is available, so it is included on its own for per-model image support.
+  const rows = state.instances.filter((i) => i.readOnly || i.driverKind === "openai-compat" || i.cli !== undefined || i.cliDefault !== undefined || i.snapshot.state === "unavailable");
 
   return (
     <div className="flex min-w-0 flex-col gap-6 pb-2">

@@ -13,7 +13,7 @@ import { IMAGE_MAX_BYTES } from "../attachments.ts";
 import { catalogModelAcceptsImages } from "../openai-vision.ts";
 import { redactSecretsInText } from "../redact.ts";
 import { toolDetailPreview } from "../tool-summary.ts";
-import { ChatToolSessionError, mountChatTools, type ChatToolDefinition, type ChatToolImage, type ChatToolSession } from "./chat-mcp-tools.ts";
+import { ChatToolSessionError, mountChatTools, type ChatToolDefinition, type ChatToolImage, type ChatToolResult, type ChatToolSession } from "./chat-mcp-tools.ts";
 import { createChatToolApproval } from "./chat-tool-approval.ts";
 import { ChatProtocolError, ChatReasoningDetails, ChatToolCalls, MAX_CHAT_TOOL_CALLS, object, type ChatToolCall } from "./openai-chat-protocol.ts";
 import { appendNative } from "./native.ts";
@@ -479,7 +479,7 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
           });
           for (const call of completion.toolCalls) {
             abort.signal.throwIfAborted();
-            let result: { text: string; ok: boolean };
+            let result: ChatToolResult;
             let started = false;
             let fatal: Error | undefined;
             try {

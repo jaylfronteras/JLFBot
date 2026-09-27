@@ -13,8 +13,12 @@ const catalog = (ids: Array<{ id: string; images?: boolean }>): ModelCatalog => 
   options: ids.map((option) => ({ id: option.id, label: option.id, ...(option.images ? { images: true } : {}) })),
 });
 
-function instance(driverKind: string, models: ModelCatalog, capabilities: ProviderAdapter["capabilities"] = {}): VisionInstance {
-  return { driverKind, models, adapter: { capabilities: { sessionModelSwitch: "in-session", ...capabilities } } };
+function instance(
+  driverKind: string,
+  models: ModelCatalog,
+  capabilities: Partial<ProviderAdapter["capabilities"]> = {},
+): VisionInstance {
+  return { driverKind, models, adapter: { capabilities: { ...capabilities, sessionModelSwitch: "in-session" } } };
 }
 
 describe("custom OpenAI-compatible vision", () => {
