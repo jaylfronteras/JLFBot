@@ -110,6 +110,11 @@ entry:
   paste, and bots on that model can use the Local VM, this computer, and a
   self-hosted VPS. Other models on the same engine are unchanged. Nothing
   is inferred from the model name.
+- Computer and other MCP tools are sent as chat-completions function
+  parameters. Schemas are inlined and reduced to the subset DeepSeek's tool
+  calls accept (and that this server can validate) before the request.
+  Optional arguments stay optional. Claude, Codex, Grok, and MiniMax still
+  receive the tool's original schema.
 
 ## Notes
 
