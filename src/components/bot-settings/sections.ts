@@ -2,8 +2,10 @@
 // in the fixed order the rail renders them. Search filters against label
 // plus keywords, the same convention as the app SettingsModal's SECTIONS.
 // "slack" is listed here but shown only when the server offers a link to the
-// organisation's Admin (BotSettingsDialog filters it out otherwise), and
-// "visibility" only to an admin in a browser (never in the desktop app).
+// organisation's Admin (BotSettingsDialog filters it out otherwise),
+// "visibility" only to an admin in a browser (never in the desktop app), and
+// "conversations" only while Simple mode is on — the thread picker is the
+// way back to older chats otherwise.
 import {
   BookOpen,
   Brain,
@@ -14,6 +16,7 @@ import {
   History,
   LayoutDashboard,
   type LucideIcon,
+  MessagesSquare,
   Mic,
   Network,
   ShieldCheck,
@@ -46,6 +49,16 @@ export const BOT_SECTIONS: Array<{
   { id: "permissions", label: "Permissions", icon: ShieldCheck, keywords: ["auto mode", "approve", "auto approve", "review", "routine approvals", "peers", "contact", "coordination", "chief of staff", "section"] },
   { id: "voice", label: "Voice & alerts", icon: Mic, keywords: ["voice", "alerts", "notifications", "speak"] },
   { id: "visibility", label: "Who can see it", labelKey: "botSettings.visibility.title", icon: Eye, keywords: ["visibility", "who can see", "private", "people", "admins", "members", "access", "hide"] },
+  { id: "conversations", label: "Conversations", labelKey: "botSettings.conversations.title", icon: MessagesSquare, keywords: ["conversations", "history", "threads", "earlier", "chats", "older"] },
   { id: "history", label: "History", icon: History, keywords: ["history", "changes", "undo", "rollback", "log"] },
   { id: "usage", label: "Usage", icon: Coins, keywords: ["tokens", "cost", "billing"] },
 ];
+
+/** Slack, visibility, and the simple-mode conversation list are conditional.
+ * The rail order stays the order of BOT_SECTIONS. */
+export function visibleBotSettingsSections(options: { simpleMode: boolean; slack: boolean; visibility: boolean }) {
+  return BOT_SECTIONS
+    .filter((entry) => entry.id !== "slack" || options.slack)
+    .filter((entry) => entry.id !== "visibility" || options.visibility)
+    .filter((entry) => entry.id !== "conversations" || options.simpleMode);
+}

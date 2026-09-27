@@ -30,6 +30,8 @@ import { ChatMarkdown } from "./ChatMarkdown";
 import { Composer } from "./Composer";
 import { ChatFindBar } from "./ChatFindBar";
 import { GroupTaskPicker } from "./TaskPicker";
+import { ConversationHistoryDialog, conversationHistoryThreads } from "./ConversationHistory";
+import { useSimpleMode } from "@/lib/simple-mode";
 import { ExportTranscriptMenu } from "./ExportTranscriptMenu";
 import { ReplyQuote } from "./ReplyQuote";
 import { ConnectorCard } from "./ConnectorCard";
@@ -891,6 +893,7 @@ function RoomSetup({ group, members }: { group: Group; members: Bot[] }) {
 }
 export function GroupView({ group }: { group: Group }) {
   const { state, dispatch } = useStore();
+  const simpleMode = useSimpleMode();
   const remoteClient = window.ogb?.remoteClient?.active === true;
   // Same Windows caption handling as ChatView: drag on the header, shift the
   // right-hand controls below the renderer-drawn caption buttons.
@@ -909,6 +912,7 @@ export function GroupView({ group }: { group: Group }) {
   const [bulletinDraft, setBulletinDraft] = useState(group.bulletin);
   const [folderOpen, setFolderOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
   const { replyTo, selectReply, clearReply, consumeReply, restoreReply } = useReplyDraft(
     group.threadId,
@@ -1139,6 +1143,15 @@ export function GroupView({ group }: { group: Group }) {
       {membersOpen && !remoteClient && !group.dm && (
         <ManageMembersPanel group={group} onClose={closeMembers} triggerRef={membersTriggerRef} />
       )}
+      {historyOpen && (
+        <ConversationHistoryDialog
+          name={group.name}
+          threads={conversationHistoryThreads(group.tasks, { threadId: group.threadId, title: group.name, createdAt: group.createdAt })}
+          currentId={group.threadId}
+          onOpen={(threadId) => dispatch({ type: "switchGroupTask", groupId: group.id, threadId })}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
       {/* Header: static member avatars; a ring + dot marks the working bot. */}
       <div
         style={headerDragStyle}
@@ -1150,7 +1163,18 @@ export function GroupView({ group }: { group: Group }) {
       >
         <div className="flex min-w-0 items-center gap-2" style={headerNoDragStyle}>
           <span className="truncate text-[15px] font-semibold text-ink">{group.name}</span>
-          {!setupPending && !group.dm && <GroupTaskPicker group={group} />}
+          {!setupPending && !group.dm && (simpleMode ? (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              aria-label={t("chat.historyAria", { name: group.name })}
+              className="shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-ink-secondary hover:bg-raised hover:text-ink"
+            >
+              {t("chat.history")}
+            </button>
+          ) : (
+            <GroupTaskPicker group={group} />
+          ))}
         </div>
         <div
           className="flex items-center gap-1.5"

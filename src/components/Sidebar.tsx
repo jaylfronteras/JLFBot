@@ -94,6 +94,8 @@ import { DesktopWorkspaceSwitcher } from "./DesktopWorkspaceSwitcher";
 import { profileInitials, SidebarProfileMenu } from "./SidebarProfileMenu";
 import { SidebarSectionHeader } from "./SidebarSectionHeader";
 import { useShowThreads } from "@/lib/thread-preferences";
+import { threadListsVisible, useSimpleMode } from "@/lib/simple-mode";
+import { openBotTarget, openRoomTarget } from "@/lib/simple-mode-open";
 import { AttentionThreadRows, crossBotAttentionThreads, SidebarBotActivity, sidebarBotActivityTasks } from "./SidebarBotActivity";
 import { SidebarAttentionPanel } from "./SidebarAttentionPanel";
 import { ShortcutHint } from "./ShortcutHint";
@@ -195,10 +197,12 @@ export function GroupListItem({
   onMenu: (menu: { groupId: string; x: number; y: number }) => void;
 }) {
   const { state, dispatch } = useStore();
+  const simpleMode = useSimpleMode();
   const selected = state.activeView === "chat" && state.selectedId === group.id;
   const [threadsOpen, setThreadsOpen] = useState(selected || Boolean(query));
-  useEffect(() => { if (selected || query) setThreadsOpen(true); }, [selected, query]);
-  const expanded = !group.dm && threadsOpen && density !== "icons";
+  useEffect(() => { if ((selected || query) && !simpleMode) setThreadsOpen(true); }, [selected, query, simpleMode]);
+  const expandable = !simpleMode && !group.dm && density !== "icons";
+  const expanded = expandable && threadsOpen;
   const members = group.memberIds
     .map((id) => state.bots.find((b) => b.id === id))
     .filter((b): b is Bot => Boolean(b));
@@ -207,7 +211,8 @@ export function GroupListItem({
     <>
     <div className="group relative">
     <button
-      onClick={() => dispatch({ type: "select", id: group.id })}
+      data-sidebar-room-row={group.id}
+      onClick={() => dispatch(openRoomTarget(group.id, group.tasks, group.threadId, simpleMode))}
       onContextMenu={(e) => {
         e.preventDefault();
         onMenu({ groupId: group.id, x: e.clientX, y: e.clientY });
@@ -223,7 +228,7 @@ export function GroupListItem({
       }}
       className={cn(
         "relative flex w-full items-center rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-accent/60",
-        density === "icons" ? "justify-center px-1 py-1.5" : density === "compact" ? "gap-1.5 py-1 pl-6 pr-2" : "gap-2 py-1.5 pl-6 pr-2",
+        density === "icons" ? "justify-center px-1 py-1.5" : density === "compact" ? cn("gap-1.5 py-1 pr-2", simpleMode ? "pl-2" : "pl-6") : cn("gap-2 py-1.5 pr-2", simpleMode ? "pl-2" : "pl-6"),
         selected && !expanded ? "bg-raised/70" : "hover:bg-raised/40",
       )}
       title={density === "icons" ? group.name : undefined}
@@ -245,7 +250,7 @@ export function GroupListItem({
         <span className="absolute bottom-1.5 right-1.5 size-2 rounded-full border border-panel bg-accent" />
       )}
     </button>
-    {!group.dm && density !== "icons" && <button type="button" aria-label={t(expanded ? "task.collapseNamed" : "task.expandNamed", { name: group.name })} aria-expanded={expanded}
+    {expandable && <button type="button" aria-label={t(expanded ? "task.collapseNamed" : "task.expandNamed", { name: group.name })} aria-expanded={expanded}
       onClick={() => setThreadsOpen((open) => !open)} className="absolute left-0.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-ink-secondary outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
       <ChevronRight aria-hidden="true" size={12} className={cn("transition-transform", expanded && "rotate-90")} />
     </button>}
@@ -642,7 +647,7 @@ export function BotContextMenu({
   onNewFolder: (botId: string) => void;
 }) {
   const { state, dispatch } = useStore();
-  const showThreads = useShowThreads();
+  const threadLists = threadListsVisible(useShowThreads(), useSimpleMode());
   const remoteClient = window.ogb?.remoteClient?.active === true;
   const bot = state.bots.find((b) => b.id === menu.botId);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -731,7 +736,7 @@ export function BotContextMenu({
       style={{ top: menu.y, left: menu.x }}
       className="fixed z-40 max-h-[calc(100dvh-16px)] w-[228px] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded-xl border border-hairline/50 bg-menu py-1.5 shadow-2xl shadow-black/60"
     >
-      {showThreads && <>
+      {threadLists && <>
         {item(<Plus size={16} className="text-ink-secondary" />, t("task.newShort"), () => dispatch({ type: "newTask", botId: bot.id }))}
         {item(<FolderPlus size={16} className="text-ink-secondary" />, t("folder.new"), () => onNewFolder(bot.id))}
         {divider("threads")}
@@ -1050,26 +1055,27 @@ export function BotListItem({
   onMenu: (menu: MenuState) => void;
 }) {
   const { state, dispatch } = useStore();
-  const showThreads = useShowThreads();
+  const simpleMode = useSimpleMode();
+  const threadLists = threadListsVisible(useShowThreads(), simpleMode);
   const remoteClient = typeof window !== "undefined" && window.ogb?.remoteClient?.active === true;
   const [renaming, setRenaming] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const selected = state.activeView === "chat" && state.selectedId === bot.id;
   const [threadsOpen, setThreadsOpen] = useState(Boolean(query));
-  useEffect(() => { if (query && showThreads) setThreadsOpen(true); }, [query, showThreads]);
+  useEffect(() => { if (query && threadLists) setThreadsOpen(true); }, [query, threadLists]);
   // a thread opened from a chip or #Title link: unfold this bot so the row
   // it lands on is on screen (BotThreadList scrolls it into view)
   const reveal = state.revealThread;
   const revealHere = Boolean(reveal && (bot.threadId === reveal.threadId || bot.tasks?.some((task) => task.threadId === reveal.threadId)));
-  useEffect(() => { if (revealHere && showThreads) setThreadsOpen(true); }, [reveal, revealHere, showThreads]);
+  useEffect(() => { if (revealHere && threadLists) setThreadsOpen(true); }, [reveal, revealHere, threadLists]);
   const deleting = state.deletingBots[bot.id] === true;
   const mascotMotion = selected && state.mascotMotion?.botId === bot.id ? state.mascotMotion : null;
   const iconOnly = density === "icons";
-  const expanded = showThreads && !iconOnly && threadsOpen;
+  const expanded = threadLists && !iconOnly && threadsOpen;
   useEffect(() => {
     if (iconOnly) setRenaming(false);
   }, [iconOnly]);
-  const avatarSize = iconOnly ? 44 : density === "compact" ? (showThreads ? 26 : 40) : (showThreads ? 32 : 56);
+  const avatarSize = iconOnly ? 44 : density === "compact" ? (threadLists ? 26 : 40) : (threadLists ? 32 : 56);
   // the visible branch, so a version switch changes the row with the chat
   const visible = visibleMessages(bot);
   const last = visible.at(-1);
@@ -1082,8 +1088,8 @@ export function BotListItem({
     iconOnly
       ? "justify-center px-1 py-1.5"
       : density === "compact"
-        ? cn(showThreads ? "gap-1.5 py-1" : "gap-2 py-1.5", showThreads ? "pl-6 pr-9 group-hover:pr-16 group-focus-within:pr-16 max-md:pr-16" : "pl-2 pr-9")
-        : cn(showThreads ? "gap-2 py-2" : "gap-3 py-2.5", showThreads ? "pl-6 pr-9 group-hover:pr-16 group-focus-within:pr-16 max-md:pr-16" : "pl-2 pr-9"),
+        ? cn(threadLists ? "gap-1.5 py-1" : "gap-2 py-1.5", threadLists ? "pl-6 pr-9 group-hover:pr-16 group-focus-within:pr-16 max-md:pr-16" : "pl-2 pr-9")
+        : cn(threadLists ? "gap-2 py-2" : "gap-3 py-2.5", threadLists ? "pl-6 pr-9 group-hover:pr-16 group-focus-within:pr-16 max-md:pr-16" : "pl-2 pr-9"),
     // Chief of Staff is called out by the crown label below, not by tinting
     // the whole row — an accent border + fill read as "selected" even when
     // another bot was active.
@@ -1201,12 +1207,11 @@ export function BotListItem({
     event.preventDefault();
     onMenu({ botId: bot.id, x: event.clientX, y: event.clientY });
   };
+  const openBot = () => dispatch(openBotTarget(bot.id, bot.tasks, bot.threadId, simpleMode));
   const onSelect = (event: React.MouseEvent) => {
     if (renaming) return;
     const insideRenameInput = event.target instanceof HTMLInputElement;
-    if (botListItemPointerIntent(event.type, insideRenameInput) === "select") {
-      dispatch({ type: "select", id: bot.id });
-    }
+    if (botListItemPointerIntent(event.type, insideRenameInput) === "select") openBot();
   };
 
   return (
@@ -1233,7 +1238,7 @@ export function BotListItem({
           if (renaming) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            dispatch({ type: "select", id: bot.id });
+            openBot();
           }
         }}
         onContextMenu={onContextMenu}
@@ -1241,7 +1246,7 @@ export function BotListItem({
       >
         {body}
       </div>
-      {showThreads && !iconOnly && <button
+      {threadLists && !iconOnly && <button
         type="button"
         aria-label={t(threadsOpen ? "task.collapseNamed" : "task.expandNamed", { name: bot.name })}
         aria-expanded={threadsOpen}
@@ -1252,7 +1257,7 @@ export function BotListItem({
         <span className="pointer-events-none absolute bottom-1.5 right-1.5 size-2 rounded-full border border-panel bg-accent" />
       )}
       {!renaming && !deleting && !iconOnly && <>
-        {showThreads && <button type="button" aria-label={t("folder.newNamed", { name: bot.name })} title={t("folder.new")} onClick={() => { setThreadsOpen(true); setCreatingProject(true); }}
+        {threadLists && <button type="button" aria-label={t("folder.newNamed", { name: bot.name })} title={t("folder.new")} onClick={() => { setThreadsOpen(true); setCreatingProject(true); }}
           className="pointer-events-none absolute right-8 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-ink-secondary opacity-0 hover:bg-raised hover:text-ink group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 max-md:pointer-events-auto max-md:opacity-70"><FolderPlus size={14} /></button>}
         <button type="button" aria-label={t("sidebar.bot.actions", { name: bot.name })} title={t("sidebar.bot.actions", { name: bot.name })} aria-haspopup="menu" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); onMenu({ botId: bot.id, x: rect.left, y: rect.bottom }); }}
           className="pointer-events-none absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-ink-secondary opacity-0 hover:bg-raised hover:text-ink group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 max-md:pointer-events-auto max-md:opacity-70"><MoreHorizontal size={15} /></button>
@@ -1265,9 +1270,9 @@ export function BotListItem({
     </div>
     {/* Keep folder expansion state mounted while the preference is off. The
         hidden list omits its children, including any thread-menu portals. */}
-    {!iconOnly && threadsOpen && <BotThreadList bot={bot} selected={selected} density={density} hidden={!showThreads} query={bot.name.toLowerCase().includes(query.toLowerCase()) || bot.title.toLowerCase().includes(query.toLowerCase()) ? "" : query} />}
-    {!expanded && <SidebarBotActivity bot={bot} density={density} />}
-    {showThreads && creatingProject && <BotProjectDialog bot={bot} onClose={() => setCreatingProject(false)} />}
+    {!iconOnly && threadsOpen && <BotThreadList bot={bot} selected={selected} density={density} hidden={!threadLists} query={bot.name.toLowerCase().includes(query.toLowerCase()) || bot.title.toLowerCase().includes(query.toLowerCase()) ? "" : query} />}
+    {!expanded && !simpleMode && <SidebarBotActivity bot={bot} density={density} />}
+    {threadLists && creatingProject && <BotProjectDialog bot={bot} onClose={() => setCreatingProject(false)} />}
     </>
   );
 }
@@ -1489,7 +1494,8 @@ function ArchivedBotsPanel({
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, dispatch } = useStore();
-  const showThreads = useShowThreads();
+  const simpleMode = useSimpleMode();
+  const threadLists = threadListsVisible(useShowThreads(), simpleMode);
   const remoteClient = window.ogb?.remoteClient?.active === true;
   const { capabilities } = useDesktopCapabilities();
   const importReturnRef = useRef<HTMLButtonElement>(null);
@@ -2006,7 +2012,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
       </div>
 
-      {attentionPinned && density !== "icons" && (
+      {attentionPinned && density !== "icons" && !simpleMode && (
         <SidebarAttentionPanel
           entries={attention}
           density={density}
@@ -2264,7 +2270,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           onNewFolder={setNewFolderBotId}
         />
       )}
-      {showThreads && newFolderBotId && state.bots.find((bot) => bot.id === newFolderBotId) && <BotProjectDialog bot={state.bots.find((bot) => bot.id === newFolderBotId)!} onClose={() => setNewFolderBotId(null)} />}
+      {threadLists && newFolderBotId && state.bots.find((bot) => bot.id === newFolderBotId) && <BotProjectDialog bot={state.bots.find((bot) => bot.id === newFolderBotId)!} onClose={() => setNewFolderBotId(null)} />}
       <ConfirmDialog
         open={confirm !== null}
         {...(confirm ? botConfirmCopy(confirm.kind, confirm.bot.name) : botConfirmCopy("archive", ""))}

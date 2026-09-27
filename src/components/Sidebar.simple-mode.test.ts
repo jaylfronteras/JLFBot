@@ -4,8 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppState, Bot, Group } from "@/state/store";
 import type { SidebarDensity } from "@/lib/sidebar-preferences";
 
-const fixture = vi.hoisted(() => ({ showThreads: true, state: {} as Partial<AppState>, dispatch: vi.fn() }));
+const fixture = vi.hoisted(() => ({ showThreads: true, simpleMode: false, state: {} as Partial<AppState>, dispatch: vi.fn() }));
 vi.mock("@/lib/thread-preferences", () => ({ useShowThreads: () => fixture.showThreads }));
+vi.mock("@/lib/simple-mode", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/simple-mode")>();
+  return { ...original, useSimpleMode: () => fixture.simpleMode };
+});
 vi.mock("./DesktopCapabilities", () => ({ useDesktopCapabilities: () => ({}) }));
 vi.mock("react-dom", () => ({ createPortal: (node: ReactNode) => node }));
 vi.mock("@/state/store", async (importOriginal) => {
@@ -45,6 +49,7 @@ function findElement(tree: ReactNode, attribute: string, value: string): ReactEl
 
 beforeEach(() => {
   fixture.showThreads = true;
+  fixture.simpleMode = false;
   fixture.state = { bots: [bot], selectedId: "other-bot", activeView: "chat", pendingQueued: { queued: [{ queueId: "q", text: "next" }] } };
   fixture.dispatch.mockClear();
   vi.stubGlobal("window", { innerWidth: 1024, innerHeight: 768 });
@@ -143,6 +148,56 @@ describe("bot-first sidebar", () => {
     expect(disabled).not.toContain("New folder");
     expect(disabled).toContain("Edit Profile");
     expect(disabled).toContain("Move to team");
+  });
+
+  it("hides thread creation in the bot menu while simple mode is on", () => {
+    fixture.simpleMode = true;
+    fixture.showThreads = true;
+    const markup = renderToStaticMarkup(createElement(BotContextMenu, {
+      menu: { botId: bot.id, x: 0, y: 0 }, onClose: vi.fn(), onArchive: vi.fn(), onDelete: vi.fn(), onMoveToSection: vi.fn(), onNewFolder: vi.fn(),
+    }));
+    expect(markup).not.toContain("New thread");
+    expect(markup).not.toContain("New folder");
+    expect(markup).toContain("Edit Profile");
+  });
+
+  it("opens the newest live chat and hides thread rows, creation, and activity rows", () => {
+    fixture.simpleMode = true;
+    fixture.showThreads = true;
+    let tree: ReactNode;
+    function Capture() { tree = BotListItem(rowProps("comfortable")); return tree; }
+    const markup = renderToStaticMarkup(createElement(Capture));
+    expect(markup).not.toContain("data-sidebar-thread-row");
+    expect(markup).not.toContain("data-sidebar-activity-row");
+    expect(markup).not.toContain("data-sidebar-folder-row");
+    expect(markup).not.toContain("New thread");
+    expect(markup).not.toContain("New folder");
+    expect(markup).not.toContain("Expand Atlas threads");
+    expect(markup).toContain('aria-label="Unread threads"');
+    expect(markup).toContain('data-testid="waiting-dot"');
+    findElement(tree, "data-sidebar-bot-row", bot.id)!.props.onClick!({ type: "click", target: {} } as MouseEvent);
+    expect(fixture.dispatch).toHaveBeenCalledExactlyOnceWith({ type: "switchTask", botId: bot.id, threadId: "unread" });
+  });
+
+  it("hides room thread rows and opens the room's newest conversation", () => {
+    fixture.simpleMode = true;
+    const group: Group = {
+      id: "group", name: "Planning", threadId: "group-thread", memberIds: [], defaultResponder: { kind: "mentions" }, bulletin: "", unread: true, createdAt: 0, messages: [],
+      tasks: [
+        { threadId: "group-thread", title: "Group conversation", createdAt: 1 },
+        { threadId: "later", title: "Later room chat", createdAt: 4, updatedAt: 9 },
+      ],
+    };
+    let tree: ReactNode;
+    function Capture() { tree = GroupListItem({ group, density: "comfortable", onMenu: vi.fn() }); return tree; }
+    const markup = renderToStaticMarkup(createElement(Capture));
+    expect(markup).not.toContain("data-sidebar-thread-row");
+    expect(markup).not.toContain("New thread");
+    expect(markup).not.toContain("Collapse Planning threads");
+    expect(markup).not.toContain("Expand Planning threads");
+    expect(markup).toContain("bg-accent");
+    findElement(tree, "data-sidebar-room-row", group.id)!.props.onClick!({} as MouseEvent);
+    expect(fixture.dispatch).toHaveBeenCalledExactlyOnceWith({ type: "switchGroupTask", groupId: "group", threadId: "later" });
   });
 
   it("does not change group collaboration histories or creation", () => {

@@ -67,6 +67,7 @@ import { ScreenFrame } from "./ScreenFrame";
 import { CompactionChip, DigestChip } from "./DigestChip";
 import { RenameTitle } from "./RenameTitle";
 import { BotActivityPicker, TaskPicker } from "./TaskPicker";
+import { useSimpleMode } from "@/lib/simple-mode";
 import { ModelPicker } from "./ModelPicker";
 import { ExportTranscriptMenu } from "./ExportTranscriptMenu";
 
@@ -863,6 +864,7 @@ function PinnedBanner({
 export function ChatView({ bot: profile }: { bot: Bot }) {
   const bot = useMemo(() => currentTaskBot(profile), [profile]);
   const { state, dispatch } = useStore();
+  const simpleMode = useSimpleMode();
   const remoteClient = window.ogb?.remoteClient?.active === true;
   // Windows has no native caption buttons (renderer-drawn, see
   // WindowCaptionButtons); this header is the window drag region, and the
@@ -1204,6 +1206,16 @@ export function ChatView({ bot: profile }: { bot: Bot }) {
             className="truncate text-[15px] font-semibold text-ink"
             inputClassName="max-w-[220px] rounded bg-inset px-1.5 py-0.5 text-[15px] font-semibold"
           />
+          {simpleMode && (
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "toggleSettings", open: true, section: "conversations" })}
+              className="shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-ink-secondary hover:bg-raised hover:text-ink"
+              aria-label={t("chat.historyAria", { name: bot.name })}
+            >
+              {t("chat.history")}
+            </button>
+          )}
           {bot.chiefOfStaff && (
             <span className="flex items-center gap-1 rounded-full bg-accent/12 px-2 py-0.5 text-[11px] font-medium text-accent">
               <Crown size={11} /> {t("chat.chiefOfStaff")}

@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Bot, Group } from "@/state/store";
 
-const fixture = vi.hoisted(() => ({ showThreads: true, queued: {} as Record<string, unknown[]>, bots: [] as Bot[], dispatch: vi.fn() }));
+const fixture = vi.hoisted(() => ({ showThreads: true, simpleMode: false, queued: {} as Record<string, unknown[]>, bots: [] as Bot[], dispatch: vi.fn() }));
 vi.mock("@/lib/thread-preferences", () => ({ useShowThreads: () => fixture.showThreads }));
+vi.mock("@/lib/simple-mode", () => ({ useSimpleMode: () => fixture.simpleMode }));
 vi.mock("@/state/store", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/state/store")>(),
   useStore: () => ({ state: { bots: fixture.bots, pendingQueued: fixture.queued }, dispatch: fixture.dispatch }),
@@ -23,7 +24,7 @@ const bot: Bot = {
     { threadId: "unread", title: "Finished reply", createdAt: 6, unread: true },
   ],
 };
-beforeEach(() => { fixture.showThreads = true; fixture.queued = {}; fixture.bots = []; fixture.dispatch.mockClear(); });
+beforeEach(() => { fixture.showThreads = true; fixture.simpleMode = false; fixture.queued = {}; fixture.bots = []; fixture.dispatch.mockClear(); });
 
 describe("optional bot thread picker", () => {
   it("keeps the usual picker when threads are shown", () => {
@@ -61,6 +62,18 @@ describe("optional bot thread picker", () => {
   it("renders nothing when only the selected conversation is working", () => {
     fixture.showThreads = false;
     expect(renderToStaticMarkup(createElement(BotActivityPicker, { bot: { ...bot, tasks: bot.tasks!.slice(0, 2) } }))).toBe("");
+    expect(fixture.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("hides the main-view thread list, new thread, and sibling picker in simple mode", () => {
+    fixture.simpleMode = true;
+    fixture.showThreads = true;
+    fixture.queued = { queued: [{ queueId: "pending" }] };
+    expect(renderToStaticMarkup(createElement(TaskPicker, { bot }))).toBe("");
+    expect(renderToStaticMarkup(createElement(BotActivityPicker, { bot }))).toBe("");
+    const group: Group = { id: "team", name: "Team", threadId: "team-current", memberIds: [], defaultResponder: { kind: "everyone" }, bulletin: "", createdAt: 1, unread: false, messages: [],
+      tasks: [{ threadId: "team-current", title: "Channel discussion", createdAt: 1 }, { threadId: "older", title: "Older room chat", createdAt: 2 }] };
+    expect(renderToStaticMarkup(createElement(GroupTaskPicker, { group }))).toBe("");
     expect(fixture.dispatch).not.toHaveBeenCalled();
   });
 

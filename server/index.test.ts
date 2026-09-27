@@ -1916,9 +1916,11 @@ describe("harness HTTP API", () => {
       expect(renamed.status).toBe(200);
       expect(renamed.body.task.title).toBe("Release plan");
 
+      expect((await api("PATCH", `/api/groups/${room.id}`, { unread: true })).status).toBe(200);
       const switched = await api("POST", `/api/groups/${room.id}/tasks/${originalThread}`);
       expect(switched.status).toBe(200);
       expect(switched.body.group.threadId).toBe(originalThread);
+      expect(switched.body.group.unread).toBe(false);
       expect(switched.body.group.tasks.find((task: { threadId: string }) => task.threadId === newThread).title).toBe("Release plan");
 
       const removed = await api("DELETE", `/api/groups/${room.id}/tasks/${newThread}`);
@@ -5468,6 +5470,33 @@ describe("harness HTTP API", () => {
         (candidate: { id: string }) => candidate.id === bot.id,
       );
       expect(reread.modelSelection).toEqual(bot.modelSelection);
+    } finally {
+      await removeBot(bot.id);
+    }
+  });
+
+  it("marks the opened bot thread read and leaves a sibling thread unread", async () => {
+    const bot = (await api("POST", "/api/bots")).body.bot;
+    try {
+      const first = bot.threadId;
+      expect((await api("PATCH", `/api/bots/${bot.id}`, { unread: true })).status).toBe(200);
+      const created = await api("POST", `/api/bots/${bot.id}/tasks`, { title: "Later notes" });
+      expect(created.status).toBe(201);
+      const later = created.body.task.threadId;
+      expect((await api("PATCH", `/api/bots/${bot.id}`, { unread: true })).status).toBe(200);
+
+      const switched = await api("POST", `/api/bots/${bot.id}/tasks/${first}`);
+      expect(switched.status).toBe(200);
+      expect(switched.body.bot.threadId).toBe(first);
+      expect(switched.body.bot.tasks.find((task: { threadId: string }) => task.threadId === first).unread).toBe(false);
+      expect(switched.body.bot.tasks.find((task: { threadId: string }) => task.threadId === later).unread).toBe(true);
+      expect(switched.body.bot.unread).toBe(true);
+
+      expect((await api("POST", `/api/bots/${bot.id}/tasks/missing-thread`)).status).toBe(404);
+      const after = (await api("GET", "/api/bots?messages=0")).body.bots.find(
+        (candidate: { id: string }) => candidate.id === bot.id,
+      );
+      expect(after.tasks.find((task: { threadId: string }) => task.threadId === later).unread).toBe(true);
     } finally {
       await removeBot(bot.id);
     }

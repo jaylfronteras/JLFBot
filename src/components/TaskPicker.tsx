@@ -14,6 +14,7 @@ import { formatTaskTokens } from "@/lib/usage";
 import { nextRename } from "@/lib/rename";
 import { FolderIcon, NewThreadButton } from "./BotProjects";
 import { useShowThreads } from "@/lib/thread-preferences";
+import { useSimpleMode } from "@/lib/simple-mode";
 import { AttentionThreadRows, crossBotAttentionThreads, threadsWhenTreeHidden, type AttentionThread } from "./SidebarBotActivity";
 import { formatUpdatedAt, orderedThreadList, threadByline, threadRecency } from "./SidebarThreadRow";
 
@@ -425,7 +426,10 @@ function ConversationTaskPicker({
 export function BotActivityPicker({ bot }: { bot: Bot }) {
   const { state, dispatch } = useStore();
   const showThreads = useShowThreads();
-  if (showThreads) return null;
+  const simpleMode = useSimpleMode();
+  // Simple mode has one chat on screen. Sibling activity stays reachable from
+  // the attention bell and from Conversations, not from a second picker.
+  if (simpleMode || showThreads) return null;
   const activity = threadsWhenTreeHidden(bot, state.pendingQueued).filter((task) => task.threadId !== bot.threadId);
   // A display preference must not strand a sibling approval or queued job,
   // including on narrow screens where the sidebar is closed. This is an
@@ -452,7 +456,8 @@ export function BotActivityPicker({ bot }: { bot: Bot }) {
 export function TaskPicker({ bot }: { bot: Bot }) {
   const { state, dispatch } = useStore();
   const showThreads = useShowThreads();
-  if (!showThreads) return null;
+  const simpleMode = useSimpleMode();
+  if (simpleMode || !showThreads) return null;
   return (
     <ConversationTaskPicker
       threadId={bot.threadId}
@@ -475,6 +480,8 @@ export function TaskPicker({ bot }: { bot: Bot }) {
  * transcript is the private bot-to-bot exchange rather than user work. */
 export function GroupTaskPicker({ group }: { group: Group }) {
   const { dispatch } = useStore();
+  const simpleMode = useSimpleMode();
+  if (simpleMode) return null;
   return (
     <ConversationTaskPicker
       threadId={group.threadId}

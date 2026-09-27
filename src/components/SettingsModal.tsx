@@ -37,6 +37,7 @@ import { WorkspaceBackupSettings } from "./WorkspaceBackupSettings";
 import { CompanyBackupSettings } from "./CompanyBackupSettings";
 import { cn } from "@/lib/cn";
 import { setShowThreads, useShowThreads } from "@/lib/thread-preferences";
+import { setSimpleMode, useSimpleMode } from "@/lib/simple-mode";
 
 // `labelKey`, not a label: t() reads the active pack when it is called, so a
 // label resolved here at module scope would freeze the language the app booted
@@ -51,7 +52,7 @@ const SECTIONS: Array<{
   { id: "general", labelKey: "settings.section.general", icon: User, keywords: ["profile", "name", "email", "updates", "threads", "parallel", "concurrency", "cleanup", "retention", "event log", "event-log", "log size"] },
   { id: "desktopWorkspaces", labelKey: "settings.section.desktopWorkspaces", icon: Building2, keywords: ["workspace", "cloud", "hosted", "vps", "server", "connect", "pair", "switch", "local"] },
   { id: "organization", labelKey: "settings.section.organization", icon: Building2, keywords: ["company", "organization", "sign in", "enroll", "managed", "models", "disconnect"] },
-  { id: "appearance", labelKey: "settings.section.appearance", icon: Palette, keywords: ["skin", "theme", "appearance", "tools", "tool calls", "threads", "show threads", "hide threads", "sidebar", "display"] },
+  { id: "appearance", labelKey: "settings.section.appearance", icon: Palette, keywords: ["skin", "theme", "appearance", "tools", "tool calls", "threads", "show threads", "hide threads", "sidebar", "display", "simple", "simple mode"] },
   { id: "experimental", labelKey: "settings.section.experimental", icon: FlaskConical, keywords: ["early", "preview", "learn", "skill", "authoring", "browser", "profiles"] },
   { id: "connections", labelKey: "settings.section.connections", icon: KeyRound, keywords: ["keys", "api", "composio", "box", "xai", "vps"] },
   { id: "engines", labelKey: "settings.section.engines", icon: Terminal, keywords: ["models", "claude", "grok", "providers", "cli"] },
@@ -272,14 +273,32 @@ function LanguageRow() {
   );
 }
 
-function ShowThreadsRow() {
-  const enabled = useShowThreads();
+function SimpleModeRow() {
+  const enabled = useSimpleMode();
   return (
-    <SettingRow title={t("settings.threadDisplay.title")} subtitle={t("settings.threadDisplay.subtitle")}>
+    <SettingRow title={t("settings.simpleMode.title")} subtitle={t("settings.simpleMode.subtitle")}>
       <Switch
         checked={enabled}
+        aria-label={t("settings.simpleMode.switch")}
+        onClick={() => setSimpleMode(!enabled)}
+      />
+    </SettingRow>
+  );
+}
+
+function ShowThreadsRow() {
+  const enabled = useShowThreads();
+  const simpleMode = useSimpleMode();
+  return (
+    <SettingRow
+      title={t("settings.threadDisplay.title")}
+      subtitle={simpleMode ? t("settings.threadDisplay.hiddenBySimpleMode") : t("settings.threadDisplay.subtitle")}
+    >
+      <Switch
+        checked={enabled && !simpleMode}
+        disabled={simpleMode}
         aria-label={t("settings.threadDisplay.show")}
-        onClick={() => setShowThreads(!enabled)}
+        onClick={() => { if (!simpleMode) setShowThreads(!enabled); }}
       />
     </SettingRow>
   );
@@ -642,6 +661,7 @@ export function SettingsModal() {
                   <SkinPicker />
                 </Card>
                 <div>
+                  <SimpleModeRow />
                   <ShowThreadsRow />
                   {!remoteActive && <ToolCallsRow />}
                 </div>

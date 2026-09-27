@@ -793,6 +793,7 @@ export type BotSettingsSection =
   | "permissions"
   | "voice"
   | "visibility"
+  | "conversations"
   | "history"
   | "usage";
 

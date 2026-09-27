@@ -9,7 +9,9 @@ import { api, useStore, type Bot } from "@/state/store";
 import type { BotOverview } from "@/lib/bot-overview-types";
 import { cn } from "@/lib/cn";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { BOT_SECTIONS } from "./bot-settings/sections";
+import { visibleBotSettingsSections } from "./bot-settings/sections";
+import { ConversationsSection } from "./ConversationHistory";
+import { useSimpleMode } from "@/lib/simple-mode";
 import { useBotSettingsDerived } from "./bot-settings/useBotSettingsDerived";
 import { OverviewSection } from "./bot-settings/OverviewSection";
 import { IdentitySection } from "./bot-settings/IdentitySection";
@@ -30,9 +32,9 @@ import { t } from "@/lib/i18n";
 import { useOwnerOrAdmin } from "@/lib/use-owner-or-admin";
 import type { PromptPreviewData } from "./bot-settings/PromptPreview";
 
-const sectionLabel = (entry: (typeof BOT_SECTIONS)[number]) => (entry.labelKey ? t(entry.labelKey) : entry.label);
+const sectionLabel = (entry: ReturnType<typeof visibleBotSettingsSections>[number]) => (entry.labelKey ? t(entry.labelKey) : entry.label);
 
-function sectionMatches(entry: (typeof BOT_SECTIONS)[number], query: string): boolean {
+function sectionMatches(entry: ReturnType<typeof visibleBotSettingsSections>[number], query: string): boolean {
   if (!query) return true;
   return [entry.label, sectionLabel(entry), ...entry.keywords].some((part) => part.toLowerCase().includes(query));
 }
@@ -53,9 +55,12 @@ export function BotSettingsDialog({ bot }: { bot: Bot }) {
   // Who can see a bot matters only where several people sign in: a browser
   // on a served workspace, and there only to an admin.
   const ownerOrAdmin = useOwnerOrAdmin();
-  const sections = BOT_SECTIONS
-    .filter((entry) => entry.id !== "slack" || slackUrl !== null)
-    .filter((entry) => entry.id !== "visibility" || (!window.ogb && ownerOrAdmin === true));
+  const simpleMode = useSimpleMode();
+  const sections = visibleBotSettingsSections({
+    simpleMode,
+    slack: slackUrl !== null,
+    visibility: !window.ogb && ownerOrAdmin === true,
+  });
   const visibleSections = sections.filter((entry) => sectionMatches(entry, q));
 
   const [overview, setOverview] = useState<BotOverview | null>(null);
@@ -235,7 +240,7 @@ export function BotSettingsDialog({ bot }: { bot: Bot }) {
     };
   }, [dispatch]);
 
-  const renderSectionBody = (id: (typeof BOT_SECTIONS)[number]["id"]) => {
+  const renderSectionBody = (id: (typeof sections)[number]["id"]) => {
     switch (id) {
       case "overview":
         return overview === null && overviewError ? (
@@ -291,6 +296,18 @@ export function BotSettingsDialog({ bot }: { bot: Bot }) {
         return <VoiceSection bot={bot} derived={derived} />;
       case "visibility":
         return <VisibilitySection bot={bot} />;
+      case "conversations":
+        return (
+          <ConversationsSection
+            tasks={bot.tasks}
+            currentId={bot.threadId}
+            fallbackTitle={bot.name}
+            onOpen={(threadId) => {
+              dispatch({ type: "switchTask", botId: bot.id, threadId });
+              dispatch({ type: "toggleSettings", open: false });
+            }}
+          />
+        );
       case "history":
         return historyRows === null && historyError ? (
           <div className="rounded-xl bg-card p-4 text-[13px] text-ink-secondary">Couldn’t load history.</div>

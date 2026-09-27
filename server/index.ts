@@ -15486,6 +15486,7 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
       if (switchLimit === null) return json(res, 400, { error: "messages must be a non-negative whole number" });
       const switched = store.switchGroupTask(group.id, m[2]);
       if (!switched) return json(res, 404, { error: "no such channel task" });
+      if (switched.unread) store.patchGroup(switched.id, { unread: false });
       const switchedSettings = { ...publicGroupState(switched), tasks: store.groupTasks(switched.id) };
       // The frame says the channel moved; it is not a transcript delivery.
       // A long room's whole history over SSE is the payload `?messages=`
@@ -17739,6 +17740,8 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
       if (switchLimit === null) return json(res, 400, { error: "messages must be a non-negative whole number" });
       const switched = store.switchTask(bot.id, m[2]);
       if (!switched) return json(res, 404, { error: "no such task" });
+      // Opening the conversation is reading it. Other threads keep their flags.
+      store.patchTask(bot.id, m[2], { unread: false });
       const switchedSettings = { ...wireBot(switched), tasks: store.tasks(switched.id).map(wireTask) };
       // Bounded for the same reason as the channel switch above.
       broadcast({
