@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { browserAvailable, builtInBrowserEnabled } from "@/lib/feature-flags";
 import { t } from "@/lib/i18n";
 import { instanceSupportsLocalComputer, localComputerSelectable } from "@/lib/local-computer";
+import { responderComputerTools } from "@/lib/model-images";
 import { effectivePlace, PLACES, placeLabelKey, type Place } from "@/lib/place";
 import { useStore, type Bot, type Task } from "@/state/store";
 import { useDesktopCapabilities } from "./DesktopCapabilities";
@@ -17,7 +18,7 @@ export function usePlaceAvailability(bot: Bot): PlaceAvailability {
   const { state } = useStore();
   const { capabilities } = useDesktopCapabilities();
   const instance = state.instances.find((candidate) => candidate.instanceId === bot.modelSelection.instanceId);
-  const computerMcp = instance?.capabilities?.computerMcp === true;
+  const computerMcp = responderComputerTools(instance, bot.modelSelection.model);
   const boxAgent = instance?.driverKind === "boxAgent";
   // Places the enrolled organisation disallows are never offered.
   const allowed = state.config?.managedPolicy?.computers ?? { thisComputer: true, localVm: true, box: true, vps: true };

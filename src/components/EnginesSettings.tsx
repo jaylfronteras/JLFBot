@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { t } from "@/lib/i18n";
 import { EngineSetup, EngineUpdateNotice, EngineWarningNotice } from "./EngineSetup";
 import { AddClaudeAccount, ClaudeAccountSettings } from "./ClaudeAccountSettings";
+import { ImageModelSettings } from "./ImageModelSettings";
 import { CodexAccountSettings } from "./CodexAccountSettings";
 
 interface ProbeResult {
@@ -274,6 +275,7 @@ function EngineRow({ instance }: { instance: InstanceInfo }) {
             <p className="flex items-center gap-1.5 text-[12px] text-success"><Check size={13} />{t("engineSetup.claude.connectedAccount")}</p>
           )
       )}
+      {instance.driverKind === "openai-compat" && <ImageModelSettings instance={instance} />}
       <details className="mt-3 rounded-xl border border-hairline/40 px-3 py-2.5">
         <summary className="cursor-pointer text-[12px] font-medium text-ink-secondary hover:text-ink">{t("engines.library.advanced")}</summary>
         <p className="mt-2 text-[12px] leading-relaxed text-ink-secondary">{t("engines.footer")}</p>

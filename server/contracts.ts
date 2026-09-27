@@ -428,6 +428,10 @@ export interface ModelCatalog {
     contextWindow?: number;
     /** Discovery hints; the native session revalidates these before each turn. */
     variants?: ModelVariantOption[];
+    /** This model accepts images. Set per model on a custom OpenAI-compatible
+     * engine; absent means text-only. Other engines leave it unset and use
+     * the adapter's image capability instead. */
+    images?: boolean;
   }>;
 }
 

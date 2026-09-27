@@ -12,7 +12,8 @@ export interface ChatToolDefinition {
   type: "function";
   function: { name: string; description: string; parameters: Record<string, unknown> };
 }
-export interface ChatToolResult { text: string; ok: boolean }
+export interface ChatToolImage { data: string; mimeType: string }
+export interface ChatToolResult { text: string; ok: boolean; images?: ChatToolImage[] }
 /** The transport cannot safely continue this turn. A dispatched operation may
  * already have taken effect, so callers must not retry it through a new round. */
 export class ChatToolSessionError extends Error {}
@@ -231,10 +232,29 @@ function boundedText(value: string): string {
   return `${bytes.subarray(0, end).toString()}\n[MCP result truncated at 50KB; request less output.]`;
 }
 
-export async function mountChatTools(integrations: SendTurnInput["integrations"], signal: AbortSignal): Promise<ChatToolSession> {
+const IMAGE_MIME = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const MAX_TOOL_IMAGES = 4;
+const MAX_TOOL_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function toolImage(item: Record<string, unknown>): ChatToolImage | null {
+  if (item.type !== "image" || typeof item.data !== "string" || typeof item.mimeType !== "string") return null;
+  if (!IMAGE_MIME.has(item.mimeType) || !item.data || item.data.length > MAX_TOOL_IMAGE_BYTES * 2) return null;
+  const bytes = Buffer.from(item.data, "base64");
+  if (!bytes.length || bytes.length > MAX_TOOL_IMAGE_BYTES) return null;
+  return { data: bytes.toString("base64"), mimeType: item.mimeType };
+}
+
+export async function mountChatTools(
+  integrations: SendTurnInput["integrations"],
+  signal: AbortSignal,
+  options?: { images?: boolean },
+): Promise<ChatToolSession> {
   const servers: Array<[string, Server]> = [];
   if (integrations?.agents) servers.push(["agents", integrations.agents]);
   if (integrations?.composio) servers.push(["composio", integrations.composio]);
+  // Local VM, VPS, and host desktops are stdio computer servers. Box's
+  // computer descriptor is not: that runner owns its own tools.
+  if (options?.images && integrations?.localComputer) servers.push(["computer", integrations.localComputer]);
   // this client starts its servers and talks over stdio; a remote (url)
   // entry is skipped here and reaches Claude and Codex bots
   for (const [name, server] of Object.entries(integrations?.custom ?? {})) {
@@ -305,15 +325,22 @@ export async function mountChatTools(integrations: SendTurnInput["integrations"]
         if (signal.aborted || callSignal.aborted) throw aborted();
         if (!object(result) || !Array.isArray(result.content) || (result.isError !== undefined && typeof result.isError !== "boolean")) throw new Error("MCP tool returned an invalid result; execution outcome may be uncertain");
         const parts: string[] = [];
+        const images: ChatToolImage[] = [];
         let unsupported = 0;
         for (const item of result.content) {
           if (!object(item) || typeof item.type !== "string" || (item.type === "text" && typeof item.text !== "string")) throw new Error("MCP tool returned invalid content; execution outcome may be uncertain");
+          const image = options?.images ? toolImage(item) : null;
           if (item.type === "text") parts.push(item.text as string);
+          else if (image && images.length < MAX_TOOL_IMAGES) images.push(image);
           else unsupported += 1;
         }
         if (result.structuredContent !== undefined) parts.push(JSON.stringify(result.structuredContent));
         if (unsupported) parts.unshift(`[${unsupported} unsupported MCP content item(s) omitted. The operation may have taken effect, but its full result cannot be represented; inspect its state before retrying.]`);
-        return { text: boundedText(parts.join("\n") || "(empty result)"), ok: result.isError !== true && unsupported === 0 };
+        return {
+          text: boundedText(parts.join("\n") || "(empty result)"),
+          ok: result.isError !== true && unsupported === 0,
+          ...(images.length ? { images } : {}),
+        };
       } catch (error) {
         await close();
         throw new ChatToolSessionError(error instanceof Error ? error.message : "MCP transport failed; execution outcome may be uncertain");

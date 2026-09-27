@@ -58,6 +58,7 @@ import {
   resolveBoxPanelAction,
   shouldPollCloudPreview,
 } from "@/lib/local-computer";
+import { modelMarkedForImages, responderComputerTools } from "@/lib/model-images";
 import {
   readComputerPanelView,
   writeComputerPanelView,
@@ -442,12 +443,18 @@ export function ComputerPanel({
   useEffect(() => {
     vmReadinessAttempts.current = 0;
   }, [bot.id, bot.computer]);
+  const computerToolSupported = responderComputerTools(selectedInstance, bot.modelSelection.model);
+  const explainImageSetting = selectedInstance?.driverKind === "openai-compat"
+    && selectedInstance.snapshot.state === "available"
+    && !modelMarkedForImages(selectedInstance, bot.modelSelection.model);
+  // Box cloud tools stay on the Computer engine. Only a VPS mount is something
+  // this model's image setting can unlock.
+  const explainVpsImages = explainImageSetting && cloudBackend === "vps";
   const vmSupported = Boolean(
     selectedInstance?.snapshot.state === "available" &&
-      selectedInstance.capabilities?.computerMcp &&
+      computerToolSupported &&
       selectedInstance.driverKind !== "boxAgent",
   );
-  const computerToolSupported = selectedInstance?.capabilities?.computerMcp === true;
   const vpsSupported = Boolean(computerToolSupported && selectedInstance?.driverKind !== "boxAgent");
   const cloudSupported = cloudBackend === "vps"
     ? vpsSupported
@@ -501,7 +508,7 @@ export function ComputerPanel({
     }
     if (bot.computer === "local") {
       if (!providerSupportsLocal) {
-        setError(new LocalizedPanelError("computer.err.localEngine"));
+        setError(new LocalizedPanelError(explainImageSetting ? "computer.err.localEngineImages" : "computer.err.localEngine"));
       }
       setPhase(capabilitiesReady && localAvailable && providerSupportsLocal ? "local" : "local-unavailable");
       setResolvedComputerSelection({ botId: bot.id, threadId: bot.threadId, computer: bot.computer, cloudBackend });
@@ -509,7 +516,7 @@ export function ComputerPanel({
     }
     if (bot.computer === "vm") {
       if (!vmSupported) {
-        setError(new LocalizedPanelError("computer.err.vmEngine"));
+        setError(new LocalizedPanelError(explainImageSetting ? "computer.err.vmEngineImages" : "computer.err.vmEngine"));
         setPhase("vm-unavailable");
         return;
       }
@@ -564,14 +571,14 @@ export function ComputerPanel({
       };
     }
     if (bot.computer === "cloud" && !cloudSupported) {
-      setError(new LocalizedPanelError("computer.err.cloudEngine"));
+      setError(new LocalizedPanelError(explainVpsImages ? "computer.err.cloudEngineImages" : "computer.err.cloudEngine"));
       setPhase("error");
       return;
     }
     if (bot.computer !== "cloud" && !capabilitiesReady) return;
     if (cloudBackend === "vps") {
       if (!vpsSupported) {
-        setError(new LocalizedPanelError("computer.err.vpsEngine"));
+        setError(new LocalizedPanelError(explainVpsImages ? "computer.err.vpsEngineImages" : "computer.err.vpsEngine"));
         setPhase("error");
         return;
       }
@@ -741,6 +748,8 @@ export function ComputerPanel({
     isLinux,
     providerSupportsLocal,
     selectedInstance?.driverKind,
+    explainImageSetting,
+    explainVpsImages,
     vmSupported,
     cloudSupported,
     vpsSupported,
@@ -1699,11 +1708,13 @@ export function ComputerPanel({
                   (mode === "browser" && !browserSelectable);
                 const unavailableTitle = managedBy ?? (
                   mode === "vm" && !vmSupported
-                    ? t("computer.unavailableVm")
+                    ? t(explainImageSetting ? "computer.unavailableVmImages" : "computer.unavailableVm")
                     : mode === "cloud" && !cloudSupported
-                      ? t("computer.unavailableCloud")
+                      ? t(explainVpsImages ? "computer.unavailableCloudImages" : "computer.unavailableCloud")
                       : mode === "local" && !localSelectable
-                        ? localDisabledReason ?? t("computer.unavailableLocal")
+                        ? explainImageSetting
+                          ? t("computer.unavailableLocalImages")
+                          : localDisabledReason ?? t("computer.unavailableLocal")
                         : mode === "browser"
                           ? browserSelectable ? t("computer.browserOnlyTitle") : browserDisabledReason
                           : undefined);

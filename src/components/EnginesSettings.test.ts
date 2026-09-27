@@ -66,6 +66,34 @@ describe("Settings → Engines → Codex", () => {
   });
 });
 
+describe("Settings → Engines → image support", () => {
+  it("offers a per-model image switch on a custom OpenAI-compatible engine", () => {
+    vi.stubGlobal("window", {});
+    fixture.bots = [];
+    fixture.instances = [{
+      instanceId: "deepseek",
+      driverKind: "openai-compat",
+      displayName: "DeepSeek",
+      snapshot: { state: "available", authenticated: true },
+      capabilities: { agentsMcp: true },
+      models: {
+        default: "deepseek-flash",
+        options: [
+          { id: "deepseek-flash", label: "DeepSeek Flash", custom: true, images: true },
+          { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro", custom: true },
+        ],
+      },
+    }];
+    const html = renderToStaticMarkup(createElement(EnginesSettings));
+    expect(html).toContain("Image support");
+    expect(html).toContain("DeepSeek Flash accepts images");
+    expect(html).toContain("DeepSeek V4 Pro accepts images");
+    const checked = html.match(/<input[^>]*checked[^>]*>/g) ?? [];
+    expect(checked).toHaveLength(1);
+    expect(checked[0]).toContain("DeepSeek Flash");
+  });
+});
+
 describe("Settings → Engines → setup cards", () => {
   it("shows every Company provider as read-only while preserving personal controls", () => {
     vi.stubGlobal("window", {});
@@ -79,7 +107,7 @@ describe("Settings → Engines → setup cards", () => {
     const companyOnly = renderToStaticMarkup(createElement(EnginesSettings));
     for (const driver of ["claudeAgent", "codex", "openai-compat"]) expect(companyOnly).toContain(`Company ${driver}`);
     expect(companyOnly).toContain("managed by your organisation");
-    for (const control of ["Set CLI", "CLI path and updates", "Sign out of ChatGPT", "Update Claude", "fixture login"]) expect(companyOnly).not.toContain(control);
+    for (const control of ["Set CLI", "CLI path and updates", "Sign out of ChatGPT", "Update Claude", "fixture login", "Accepts images"]) expect(companyOnly).not.toContain(control);
     fixture.instances.push({ instanceId: "personal", displayName: "Personal Claude", driverKind: "claudeAgent", cliDefault: "claude",
       snapshot: { state: "available" }, models: { default: "sonnet", options: [] } });
     const withPersonal = renderToStaticMarkup(createElement(EnginesSettings));

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type {
   DriverCreateInput,
   ModelCatalog,
@@ -5,23 +6,56 @@ import type {
   RuntimeEvent,
   RuntimeEventListener,
   SendTurnInput,
+  TurnImageInput,
 } from "../contracts.ts";
 import { newEventId, newId } from "../contracts.ts";
+import { IMAGE_MAX_BYTES } from "../attachments.ts";
+import { catalogModelAcceptsImages } from "../openai-vision.ts";
 import { redactSecretsInText } from "../redact.ts";
 import { toolDetailPreview } from "../tool-summary.ts";
-import { ChatToolSessionError, mountChatTools, type ChatToolDefinition, type ChatToolSession } from "./chat-mcp-tools.ts";
+import { ChatToolSessionError, mountChatTools, type ChatToolDefinition, type ChatToolImage, type ChatToolSession } from "./chat-mcp-tools.ts";
 import { createChatToolApproval } from "./chat-tool-approval.ts";
 import { ChatProtocolError, ChatReasoningDetails, ChatToolCalls, MAX_CHAT_TOOL_CALLS, object, type ChatToolCall } from "./openai-chat-protocol.ts";
 import { appendNative } from "./native.ts";
 import { classifyError, computeBackoff, interruptibleDelay, RETRY_MAX_ATTEMPTS } from "./retry.ts";
 
+export type OpenAIContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface OpenAIChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
+  content: string | OpenAIContentPart[] | null;
   tool_calls?: ChatToolCall[];
   tool_call_id?: string;
   reasoning_content?: string;
   reasoning_details?: Record<string, unknown>[];
+}
+
+function imageUrlPart(mime: string, data: string): OpenAIContentPart {
+  return { type: "image_url", image_url: { url: `data:${mime};base64,${data}` } };
+}
+
+function attachmentParts(images: readonly TurnImageInput[]): OpenAIContentPart[] {
+  return images.map((image) => {
+    const bytes = readFileSync(image.path);
+    if (bytes.byteLength > IMAGE_MAX_BYTES) throw new ChatProtocolError("image attachment exceeds the size limit");
+    return imageUrlPart(image.mime, bytes.toString("base64"));
+  });
+}
+
+/** OpenAI chat-completions image content. Text-only models keep a string. */
+export function openAIUserContent(text: string, images: readonly TurnImageInput[] | undefined, vision: boolean): OpenAIChatMessage["content"] {
+  if (!vision || !images?.length) return text;
+  const parts: OpenAIContentPart[] = [];
+  if (text) parts.push({ type: "text", text });
+  parts.push(...attachmentParts(images));
+  return parts.length ? parts : text;
+}
+
+export function openAIToolContent(text: string, images: readonly ChatToolImage[] | undefined): OpenAIChatMessage["content"] {
+  if (!images?.length) return text;
+  return [{ type: "text", text }, ...images.map((image) => imageUrlPart(image.mimeType, image.data))];
 }
 
 interface Usage {
@@ -289,14 +323,17 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
     }
   };
 
-  const messagesFor = (turn: SendTurnInput): OpenAIChatMessage[] => [
-    ...(turn.system ? [{ role: "system" as const, content: turn.system }] : []),
-    ...(turn.transcript ?? []).map((message) => ({
-      role: message.role,
-      content: message.text,
-    })),
-    { role: "user", content: turn.text },
-  ];
+  const messagesFor = (turn: SendTurnInput, model: string): OpenAIChatMessage[] => {
+    const vision = catalogModelAcceptsImages(options.models(), model);
+    return [
+      ...(turn.system ? [{ role: "system" as const, content: turn.system }] : []),
+      ...(turn.transcript ?? []).map((message) => ({
+        role: message.role,
+        content: message.text,
+      })),
+      { role: "user", content: openAIUserContent(turn.text, turn.images, vision) },
+    ];
+  };
 
   const sendTurn = async (turn: SendTurnInput) => {
     if (!options.apiKey) throw new Error(options.missingKeyError);
@@ -304,8 +341,9 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
 
     const turnId = newId();
     const abort = new AbortController();
-    const messages = messagesFor(turn);
     const model = turn.model || options.models().default;
+    const vision = catalogModelAcceptsImages(options.models(), model);
+    const messages = messagesFor(turn, model);
     const secrets = [options.apiKey];
     for (const integration of Object.values(turn.integrations ?? {})) {
       const entries = object(integration);
@@ -355,7 +393,11 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
       const denials: string[] = [];
       const seenCalls = new Set<string>();
       try {
-        tools = await mountChatTools(options.tools === false ? undefined : turn.integrations, abort.signal);
+        tools = await mountChatTools(
+          options.tools === false ? undefined : turn.integrations,
+          abort.signal,
+          { images: vision && options.tools !== false },
+        );
         for (let round = 0; round < 16; round++) {
           abort.signal.throwIfAborted();
           native("out", options.nativeLog.outgoing(turn, messages, model));
@@ -476,7 +518,12 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
             const output = preview({ ok: result.ok, result: text });
             emit({ ...base(turn.threadId, turnId), type: "item.completed", itemType: "tool", itemId: call.id, ok: result.ok, output });
             if (!result.ok) toolFailed = true;
-            messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: result.ok, result: text }) });
+            const toolText = JSON.stringify({ ok: result.ok, result: text });
+            messages.push({
+              role: "tool",
+              tool_call_id: call.id,
+              content: openAIToolContent(toolText, vision ? result.images : undefined),
+            });
             abort.signal.throwIfAborted();
             if (fatal) throw fatal;
           }

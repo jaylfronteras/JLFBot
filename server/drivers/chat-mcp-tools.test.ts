@@ -294,4 +294,45 @@ describe("Chat MCP schema validation", () => {
     await expect(f.mount()).rejects.toThrow("schema could not be validated");
     expect(alive(f.read().pid)).toBe(false);
   });
+
+  it("forwards computer screenshots only when image support is on", async () => {
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    const dir = mkdtempSync(join(tmpdir(), "jlfbot-chat-mcp-image-"));
+    dirs.push(dir);
+    const script = join(dir, "screen.mjs");
+    writeFileSync(script, `#!/usr/bin/env node
+      const png = ${JSON.stringify(png)};
+      const send = (message) => process.stdout.write(JSON.stringify(message) + "\\n");
+      let buffer = "";
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", (chunk) => {
+        buffer += chunk;
+        let newline;
+        while ((newline = buffer.indexOf("\\n")) !== -1) {
+          const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1);
+          const message = JSON.parse(line);
+          if (message.method === "initialize") send({jsonrpc:"2.0",id:message.id,result:{protocolVersion:"2024-11-05",capabilities:{tools:{}}}});
+          else if (message.method === "tools/list") send({jsonrpc:"2.0",id:message.id,result:{tools:[{name:"screenshot",description:"Screen",inputSchema:{type:"object",properties:{},additionalProperties:false}}]}});
+          else if (message.method === "tools/call") send({jsonrpc:"2.0",id:message.id,result:{content:[{type:"text",text:"desktop"},{type:"image",data:png,mimeType:"image/png"}]}});
+        }
+      });
+    `);
+    chmodSync(script, 0o755);
+    const server = { command: script, args: [], env: {} };
+    const hidden = new AbortController();
+    controllers.push(hidden);
+    const without = await mountChatTools({ localComputer: server }, hidden.signal);
+    sessions.push(without);
+    expect(without.definitions).toEqual([]);
+    const shown = new AbortController();
+    controllers.push(shown);
+    const session = await mountChatTools({ localComputer: server }, shown.signal, { images: true });
+    sessions.push(session);
+    expect(session.definitions.map((tool) => tool.function.name)).toEqual(["computer_screenshot"]);
+    await expect(session.execute("computer_screenshot", {}, shown.signal)).resolves.toEqual({
+      text: "desktop",
+      ok: true,
+      images: [{ data: png, mimeType: "image/png" }],
+    });
+  });
 });

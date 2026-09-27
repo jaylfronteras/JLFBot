@@ -79,9 +79,37 @@ entry:
   instances can hold different keys without colliding.
 - The driver lists the endpoint's `/models` when it can and keeps your
   `model` as a custom option either way.
-- Honest limits: chat text + reasoning streams only — **no tool calls**, so
-  bots on these instances answer and write, but don't operate computers or
-  connected apps.
+- Tool calls are on unless `config.tools` is `false`. Connected apps and
+  your own stdio MCP servers can be mounted. The cloud Box desktop still
+  belongs to the Computer engine; this driver has no relay for it.
+- **Images and the virtual computer are per model, and off by default.**
+  A text-only id such as `deepseek-v4-pro` stays text-only. Mark a vision
+  model, for example DeepSeek V4.1 Flash (`deepseek-flash`), in
+  **Settings → Engines → Image support**, or in config:
+
+```json
+{
+  "instances": {
+    "deepseek": {
+      "driver": "openai-compat",
+      "displayName": "DeepSeek",
+      "environment": { "DEEPSEEK_API_KEY": "sk-…" },
+      "config": {
+        "url": "https://api.deepseek.com",
+        "apiKeyEnv": "DEEPSEEK_API_KEY",
+        "model": "deepseek-flash",
+        "imageModels": ["deepseek-flash"]
+      }
+    }
+  }
+}
+```
+
+  With that id listed, pasted images and computer screenshots are sent as
+  OpenAI chat-completions `image_url` parts, the composer accepts image
+  paste, and bots on that model can use the Local VM, this computer, and a
+  self-hosted VPS. Other models on the same engine are unchanged. Nothing
+  is inferred from the model name.
 
 ## Notes
 

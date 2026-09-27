@@ -1,4 +1,5 @@
 import { track } from "@/lib/analytics";
+import { responderAcceptsImages } from "@/lib/model-images";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { ArrowUp, BookOpen, Clock, Mic, Paperclip, Square, Target, Users, X } from "lucide-react";
 import { useStore, visibleMessages, currentTaskBot, type Bot, type Group, type Message } from "@/state/store";
@@ -237,11 +238,11 @@ export function Composer({
   // image paste is offered only when every bot that will actually answer
   // can open one. sendGroup routes to mentions, else the room default —
   // `members.some` would let a mixed room send <attached-image> to Grok.
-  const botSupportsImages = (candidate?: Bot) =>
-    Boolean(
-      candidate &&
-        state.instances.find((i) => i.instanceId === candidate.modelSelection.instanceId)?.capabilities?.images,
-    );
+  const botSupportsImages = (candidate?: Bot) => {
+    if (!candidate) return false;
+    const instance = state.instances.find((i) => i.instanceId === candidate.modelSelection.instanceId);
+    return responderAcceptsImages(instance, candidate.modelSelection.model);
+  };
   const imageTargetsSupport = (message: string, mode: "chat" | "goal") => {
     if (!group) return botSupportsImages(bot);
     if (mode === "goal") {

@@ -35,6 +35,20 @@ describe("local computer UI eligibility", () => {
         bot,
       ),
     ).toBe(true);
+    const custom = {
+      instanceId: "deepseek",
+      driverKind: "openai-compat",
+      capabilities: { agentsMcp: true },
+      models: {
+        default: "deepseek-flash",
+        options: [
+          { id: "deepseek-flash", label: "DeepSeek Flash", images: true },
+          { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+        ],
+      },
+    } as InstanceInfo;
+    expect(instanceSupportsLocalComputer([custom], { modelSelection: { instanceId: "deepseek", model: "deepseek-flash" } })).toBe(true);
+    expect(instanceSupportsLocalComputer([custom], { modelSelection: { instanceId: "deepseek", model: "deepseek-v4-pro" } })).toBe(false);
   });
 
   it("keeps This computer selectable on macOS before CUA is granted", () => {

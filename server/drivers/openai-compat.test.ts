@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordEvents } from "../testing/events.ts";
 import { buildTurnContext, NATIVELY_REPLAYING_DRIVER_KINDS } from "../turn-context.ts";
-import { OpenAICompatDriver } from "./openai-compat.ts";
+import { mergeImageModels, OpenAICompatDriver } from "./openai-compat.ts";
 
 describe("OpenAICompatDriver", () => {
   const savedUrl = process.env.OPENAI_COMPAT_URL;
@@ -102,6 +102,41 @@ describe("OpenAICompatDriver", () => {
         { id: "vendor/model-b", label: "vendor/model-b", custom: true },
       ],
     });
+    await inst.dispose();
+  });
+
+  it("stamps image support only on the listed models after a catalog refresh", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({
+        data: [
+          { id: "deepseek-flash", name: "DeepSeek Flash" },
+          { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } })),
+    );
+    const inst = await OpenAICompatDriver.create({
+      instanceId: "deepseek",
+      displayName: "DeepSeek",
+      enabled: true,
+      config: OpenAICompatDriver.decodeConfig({
+        url: "https://api.deepseek.com",
+        apiKeyEnv: "TEST_KEY",
+        model: "deepseek-flash",
+        imageModels: ["deepseek-flash"],
+      }),
+      environment: { TEST_KEY: "secret" },
+    });
+    await inst.refreshModels?.();
+    expect(inst.models.options.find((model) => model.id === "deepseek-flash")).toMatchObject({ images: true });
+    expect(inst.models.options.find((model) => model.id === "deepseek-v4-pro")?.images).toBeUndefined();
+    expect(inst.adapter.capabilities.images).toBeUndefined();
+    expect(inst.adapter.capabilities.nativeImageInput).toBeUndefined();
+    expect(inst.adapter.capabilities.computerMcp).toBeUndefined();
+    expect(inst.adapter.capabilities.localComputerMcp).toBeUndefined();
+    expect(mergeImageModels({ imageModels: ["deepseek-flash"], url: "https://api.deepseek.com" }, { "deepseek-v4-pro": true })
+      .imageModels).toEqual(["deepseek-flash", "deepseek-v4-pro"]);
+    expect(mergeImageModels({ imageModels: ["deepseek-flash"] }, { "deepseek-flash": false })).not.toHaveProperty("imageModels");
     await inst.dispose();
   });
 
@@ -669,4 +704,12 @@ it("openai-compat preserves an explicit tools-off connection and rejects ambiguo
   expect(OpenAICompatDriver.decodeConfig({ tools: false })).toMatchObject({ tools: false });
   expect(OpenAICompatDriver.decodeConfig({ tools: true })).toMatchObject({ tools: true });
   expect(() => OpenAICompatDriver.decodeConfig({ tools: "false" })).toThrow("tools must be a boolean");
+});
+
+it("does not mark deepseek-v4-pro or any other model for images unless listed", () => {
+  expect(OpenAICompatDriver.decodeConfig({ model: "deepseek-v4-pro" })).not.toHaveProperty("imageModels");
+  expect(OpenAICompatDriver.decodeConfig({ model: "deepseek-flash" })).not.toHaveProperty("imageModels");
+  expect(OpenAICompatDriver.decodeConfig({ imageModels: ["deepseek-flash"] }).imageModels).toEqual(["deepseek-flash"]);
+  expect(OpenAICompatDriver.decodeConfig({ imageModels: [] })).not.toHaveProperty("imageModels");
+  expect(() => OpenAICompatDriver.decodeConfig({ imageModels: ["deepseek-v4-pro", " deepseek-flash"] })).toThrow(/imageModels/);
 });

@@ -27,6 +27,50 @@ export interface OpenAICompatConfig {
   model?: string;
   provider?: string;
   managedModels?: string[];
+  /** Model ids that accept images. Absent or empty leaves every model text-only. */
+  imageModels?: string[];
+}
+
+const MAX_IMAGE_MODELS = 256;
+
+function imageModelIds(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > MAX_IMAGE_MODELS) throw new Error("imageModels must be a list of model ids");
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const id of value) {
+    if (typeof id !== "string" || id.length === 0 || id.length > 200 || id.trim() !== id || /\p{Cc}/u.test(id)) {
+      throw new Error("imageModels must be a list of model ids");
+    }
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids.length ? ids : undefined;
+}
+
+/** Merge a Settings toggle into the saved id list. Ids are explicit: nothing
+ * is added because its name looks like a vision model. */
+export function mergeImageModels(config: Record<string, unknown>, patch: Record<string, boolean>): Record<string, unknown> {
+  const current = imageModelIds(config.imageModels) ?? [];
+  const next = new Set(current);
+  for (const [id, on] of Object.entries(patch)) {
+    if (typeof id !== "string" || id.length === 0 || id.length > 200 || id.trim() !== id || /\p{Cc}/u.test(id)) {
+      throw new Error("imageModels must be a list of model ids");
+    }
+    if (on) next.add(id);
+    else next.delete(id);
+  }
+  if (next.size > MAX_IMAGE_MODELS) throw new Error("Too many models are marked as accepting images.");
+  const { imageModels: _previous, ...rest } = config;
+  const imageModels = [...next];
+  return imageModels.length ? { ...rest, imageModels } : rest;
+}
+
+function stampImageModels(options: ModelCatalog["options"], imageModels: readonly string[] | undefined): ModelCatalog["options"] {
+  if (!imageModels?.length) return options;
+  const ids = new Set(imageModels);
+  return options.map((option) => ids.has(option.id) ? { ...option, images: true } : option);
 }
 
 function isOpenRouterUrl(url: string): boolean {
@@ -42,6 +86,7 @@ function decodeConfig(raw: unknown): OpenAICompatConfig {
   const config = (raw ?? {}) as Record<string, unknown>;
   if (config.tools !== undefined && typeof config.tools !== "boolean") throw new Error("tools must be a boolean");
   if (config.managedModels !== undefined && (!Array.isArray(config.managedModels) || !config.managedModels.length || config.managedModels.some(model => typeof model !== "string" || !model.trim()))) throw new Error("Invalid managed models.");
+  const imageModels = imageModelIds(config.imageModels);
   const envUrl = process.env.OPENAI_COMPAT_URL;
   return {
     ...(config.tools !== undefined ? { tools: config.tools as boolean } : {}),
@@ -60,6 +105,7 @@ function decodeConfig(raw: unknown): OpenAICompatConfig {
     provider: typeof config.provider === "string"
       ? config.provider || undefined
       : process.env.OPENAI_COMPAT_PROVIDER || undefined,
+    ...(imageModels ? { imageModels } : {}),
   };
 }
 
@@ -106,6 +152,7 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
             : [{ id: config.model, label: config.model, custom: true }, ...DEFAULT_MODELS.options],
         }
       : DEFAULT_MODELS;
+    catalog = { ...catalog, options: stampImageModels(catalog.options, config.imageModels) };
 
     const fetchModels = async () => {
       if (config.managedModels) return;
@@ -134,7 +181,7 @@ export const OpenAICompatDriver: ProviderDriver<OpenAICompatConfig> = {
         if (config.model && !options.some((model) => model.id === config.model)) {
           options.unshift({ id: config.model, label: config.model, custom: true });
         }
-        catalog = { default: config.model ?? options[0].id, options };
+        catalog = { default: config.model ?? options[0].id, options: stampImageModels(options, config.imageModels) };
       } catch {
         // Catalog refresh is opportunistic; keep the seeded options.
       }

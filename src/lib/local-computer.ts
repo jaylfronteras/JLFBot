@@ -1,13 +1,14 @@
 import type { Bot, InstanceInfo } from "@/state/store";
+import { responderLocalComputer } from "@/lib/model-images";
 
 export function instanceSupportsLocalComputer(
   instances: InstanceInfo[],
   bot: Pick<Bot, "modelSelection">,
 ): boolean {
-  const capabilities = instances.find(
-    (instance) => instance.instanceId === bot.modelSelection.instanceId,
-  )?.capabilities;
-  return capabilities?.localComputerMcp === true || capabilities?.computerMcp === true;
+  const instance = instances.find(
+    (candidate) => candidate.instanceId === bot.modelSelection.instanceId,
+  );
+  return responderLocalComputer(instance, bot.modelSelection.model);
 }
 
 /** Whether the Runs-on “This computer” control should be clickable.

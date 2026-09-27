@@ -12,11 +12,16 @@ import { resolveCli } from "./procs.ts";
 const displayName = z.string().trim().min(1).max(80).refine((value) => !/\p{Cc}/u.test(value), "Name cannot contain control characters");
 const configDir = z.string().trim().max(4096).refine((value) => !/\p{Cc}/u.test(value), "Directory cannot contain control characters");
 export const createClaudeAccountSchema = z.object({ displayName, configDir: configDir.optional() }).strict();
+const modelImages = z.record(z.string(), z.boolean()).refine((value) => {
+  const ids = Object.keys(value);
+  return ids.length > 0 && ids.length <= 32 && ids.every((id) => id.length > 0 && id.length <= 200 && id.trim() === id && !/\p{Cc}/u.test(id));
+}, "Image support needs one model id at a time");
 export const instanceSettingsSchema = z.object({
   cli: z.string().max(4096).refine((value) => !/\p{Cc}/u.test(value), "CLI cannot contain control characters").optional(),
   displayName: displayName.optional(),
   configDir: configDir.optional(),
   tools: z.boolean().optional(),
+  modelImages: modelImages.optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, "No settings supplied");
 
 function rawConfig(entry: InstanceConfig): Record<string, unknown> {

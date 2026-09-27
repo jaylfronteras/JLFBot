@@ -44,6 +44,8 @@ import {
 import { approvalHeldNote, approvalHeldReason, approvalModeForOrigin, autoVerdict, deliverFullAccessApproval, delegationInheritsFullAccess } from "./auto-approve.ts";
 import { updateClaudeCli } from "./claude-update.ts";
 import { configuredAccountDirectory, assertSeparateClaudeAccount, claudeAccountInfo, createClaudeAccountSchema, instanceSettingsSchema, newClaudeAccount } from "./claude-accounts.ts";
+import { catalogModelAcceptsImages, computerMcpFor, localComputerMcpFor, nativeImageInputFor } from "./openai-vision.ts";
+import { mergeImageModels } from "./drivers/openai-compat.ts";
 import { providerIconPatchSchema, withInstanceIcon } from "./provider-icon.ts";
 import { providerIconError } from "../shared/provider-icon.ts";
 import {
@@ -2461,15 +2463,16 @@ function previewSystemPrompt(bot: BotRecord) {
     .join(" ");
   const instance = turnInstance(bot);
   const caps = instance?.adapter.capabilities;
+  const modelId = bot.modelSelection.model;
   const teamComputer = inheritedTeamComputer(bot);
   const previewComputer = teamComputer ? "cloud" : bot.computer;
   const computerPromptKind: ComputerPromptKind | null =
     previewComputer === "vm"
-      ? caps?.computerMcp ? localVmMode(cfg) === "per-bot" ? "vm-private" : "vm-shared" : null
+      ? computerMcpFor(instance, modelId) ? localVmMode(cfg) === "per-bot" ? "vm-private" : "vm-shared" : null
       : previewComputer === "cloud"
-        ? instance?.driverKind === "boxAgent" ? "box-agent" : caps?.computerMcp ? bot.cloudBackend === "vps" ? "vps" : "box" : null
+        ? instance?.driverKind === "boxAgent" ? "box-agent" : computerMcpFor(instance, modelId) ? bot.cloudBackend === "vps" ? "vps" : "box" : null
         : previewComputer === "local"
-          ? caps?.localComputerMcp ? "local" : null
+          ? localComputerMcpFor(instance, modelId) ? "local" : null
           : null;
   const peers = reachablePeers(store.bots, bot);
   const coordination = bot.chiefOfStaff
@@ -5135,12 +5138,13 @@ async function computerPreviewSurface(bot: BotRecord, threadId?: string) {
     if (remote.ready) return "cloud";
   }
   const target = localVmTargetForBot(bot.id);
-  if (instance?.adapter.capabilities.computerMcp && localVmSeen.has(target.key)) {
+  const previewModel = bot.modelSelection.model;
+  if (computerMcpFor(instance, previewModel) && localVmSeen.has(target.key)) {
     const vm = await containerComputerStatus(undefined, undefined, target).catch(() => null);
     if (vm && autoLocalVmAttachable(vm)) return "vm";
   }
   if (shouldMountLocalComputer({ requested: undefined, hostPlatform: process.platform,
-    providerSupportsLocal: instance?.adapter.capabilities.localComputerMcp === true }) && readCuaConnection()) return "local";
+    providerSupportsLocal: localComputerMcpFor(instance, previewModel) }) && readCuaConnection()) return "local";
   if (bot.cloudBackend === "vps") return "cloud"; // show its unavailable reason
   return plan.browser ? "browser" : "off";
 }
@@ -5148,9 +5152,13 @@ async function computerPreviewSurface(bot: BotRecord, threadId?: string) {
 /** Discovery is read-only. Starting or creating a configured computer is
  * deferred until a chat tool selects it and the old turn releases its tools. */
 async function selectableComputers(bot: BotRecord) {
-  const caps = registry.get(bot.modelSelection.instanceId)?.adapter.capabilities;
+  const instance = registry.get(bot.modelSelection.instanceId);
+  const caps = instance?.adapter.capabilities;
+  const modelId = bot.modelSelection.model;
+  const computerMcp = computerMcpFor(instance, modelId);
+  const localComputerMcp = localComputerMcpFor(instance, modelId);
   const off = bot.computer === "off";
-  const localEngine = registry.get(bot.modelSelection.instanceId)?.driverKind !== "boxAgent";
+  const localEngine = instance?.driverKind !== "boxAgent";
   return Promise.all((["cloud", "vm", "local", "browser"] as const).map(async surface => {
     let ready = false;
     let canStart = false;
@@ -5160,7 +5168,7 @@ async function selectableComputers(bot: BotRecord) {
       if (off) reason = "Computer access is Off in this bot's settings.";
       else if (surface === "cloud") {
         if (bot.cloudBackend === "vps") {
-          const status = localEngine && caps?.computerMcp ? await vps.vpsComputerStatus(cfg, bot.id) : null;
+          const status = localEngine && computerMcp ? await vps.vpsComputerStatus(cfg, bot.id) : null;
           ready = status?.ready === true;
           canStart = Boolean(status?.daemonUp && status.managed && status.container === "stopped" &&
             status.image && status.imageMatches && status.network === "private" && status.mounts === "none" && status.security === "hardened");
@@ -5173,7 +5181,7 @@ async function selectableComputers(bot: BotRecord) {
           canStart = lifecycle === "wake";
           canCreate = lifecycle === "provision";
         }
-      } else if (surface === "vm" && localEngine && caps?.computerMcp) {
+      } else if (surface === "vm" && localEngine && computerMcp) {
         const target = localVmTargetForBot(bot.id);
         const status = await containerComputerStatus(undefined, undefined, target);
         ready = status.ready;
@@ -5182,7 +5190,7 @@ async function selectableComputers(bot: BotRecord) {
         reason = status.problem ?? reason;
       } else if (surface === "local") {
         ready = shouldMountLocalComputer({ requested: "local", hostPlatform: process.platform,
-          providerSupportsLocal: caps?.localComputerMcp === true }) && Boolean(readCuaConnection());
+          providerSupportsLocal: localComputerMcp }) && Boolean(readCuaConnection());
       } else if (surface === "browser") {
         ready = caps?.browserMcp === true && builtInBrowserEnabled(cfg) && bot.browser !== false && browserEngineStatus().kind === "ready";
         reason = "The built-in browser is disabled, not installed, or unsupported by this model engine.";
@@ -7064,8 +7072,10 @@ async function startTurn(
   // string remains the durable message. Native-image providers get a
   // path-free prompt and bounded inputs instead of needing a Read tool;
   // path-reading drivers retain the attachment tag as their compatibility route.
+  const switchedEngine = instance.instanceId !== bot.modelSelection.instanceId;
+  const model = opts?.runOn === "cloud" || switchedEngine ? instance.models.default : bot.modelSelection.model;
   const resolvedImages = extractTurnImages(text);
-  const usesNativeImageInput = instance.adapter.capabilities.nativeImageInput === true;
+  const usesNativeImageInput = nativeImageInputFor(instance, model);
   const providerText = usesNativeImageInput ? resolvedImages.text : text;
   const turnImages = usesNativeImageInput ? resolvedImages.images : [];
   const commsDepth = opts?.commsDepth ?? 0;
@@ -7098,8 +7108,6 @@ async function startTurn(
   if (providerInstancesChanging.has(instanceId)) {
     throw Object.assign(new Error("this provider account is being updated — try again shortly"), { status: 409 });
   }
-  const switchedEngine = instance.instanceId !== bot.modelSelection.instanceId;
-  const model = opts?.runOn === "cloud" || switchedEngine ? instance.models.default : bot.modelSelection.model;
   // a cloud routine borrows the instance default model, so it borrows no
   // per-bot effort either
   const effort = opts?.runOn === "cloud" || switchedEngine ? undefined : bot.modelSelection.effort;
@@ -7431,11 +7439,11 @@ async function startTurn(
       // only to ordinary turns that mount a computer into the local agent.
       const teamComputer = inheritedTeamComputer(bot);
       const cloudBackend = teamComputer || opts?.runOn === "cloud" || bot.cloudBackend !== "vps" ? "box" : "vps";
-      const mountsComputerMcp = instance.adapter.capabilities.computerMcp === true;
+      const mountsComputerMcp = computerMcpFor(instance, model);
       // Box's native runner owns its computer tools. Local drivers mount
       // Local VM/VPS tools, but have no Box relay to execute this descriptor.
       const mountsCloudComputer = instance.driverKind === "boxAgent";
-      const mountsLocalComputer = instance.adapter.capabilities.localComputerMcp === true;
+      const mountsLocalComputer = localComputerMcpFor(instance, model);
       // Where this turn's hands may land. The bot's "Works on" choice is
       // strict; a browser-only bot gets no computer at all, and a bot whose
       // browser is withheld (workspace flag, its own switch, or an engine
@@ -7551,7 +7559,9 @@ async function startTurn(
       const attachLocalVm = async (strict: boolean): Promise<boolean> => {
         if (!mountsComputerMcp || instance.driverKind === "boxAgent") {
           if (!strict) return false;
-          throw new Error("this model engine cannot use the Local VM — choose Claude or an ACP engine, or select another computer destination");
+          throw new Error(instance.driverKind === "openai-compat" && !catalogModelAcceptsImages(instance.models, model)
+            ? "this model is not marked as accepting images — turn on image support for it in Settings → Engines, or select another computer destination"
+            : "this model engine cannot use the Local VM — choose Claude or an ACP engine, or select another computer destination");
         }
         const localVmTarget = localVmTargetForBot(bot.id);
         let lazyReadyVm: { runtime: Runtime } | null = null;
@@ -9299,7 +9309,7 @@ async function runGroupMemberTurn(
   const resolvedLatestImages = latestUser?.text && !cardContinuation
     ? extractTurnImages(latestUser.text)
     : { text: latestUser?.text ?? "", images: [] };
-  const usesNativeImageInput = instance.adapter.capabilities.nativeImageInput === true;
+  const usesNativeImageInput = nativeImageInputFor(instance, preparedSelection.model);
   const roomContext = serializeRoomContext(
     threadId,
     userName,
@@ -9520,13 +9530,13 @@ async function runGroupMemberTurn(
     activeInternalGenerationByThread.get(threadId) === internalGeneration;
   if (!roomTeamComputer && roomPlan.computer === "local") {
     integrations.localComputer = await mountHostComputer(
-      resourceOwner, readyBot.id, instance.adapter.capabilities.localComputerMcp === true);
+      resourceOwner, readyBot.id, localComputerMcpFor(instance, preparedSelection.model));
     if (!roomSetupIsCurrent()) return false;
     roomComputerKind = "local";
   }
   if (!roomTeamComputer && roomPlan.computer === "cloud") {
     if (turnProvider(readyBot) === "vps") {
-      const unsupported = vps.vpsDriverError(instance.driverKind, instance.adapter.capabilities.computerMcp === true);
+      const unsupported = vps.vpsDriverError(instance.driverKind, computerMcpFor(instance, preparedSelection.model));
       if (unsupported) throw new Error(unsupported);
       vpsThreadStarted(readyBot.id, threadId);
       roomVpsBotId = readyBot.id;
@@ -9559,8 +9569,10 @@ async function runGroupMemberTurn(
   // Room and Goal turns use the speaker's desktop, never the coordinator's.
   // Claim the same lease as direct turns before asynchronous VM setup.
   if (readyBot.computer === "vm") {
-    if (instance.adapter.capabilities.computerMcp !== true || instance.driverKind === "boxAgent") {
-      throw new Error("this model engine cannot use the Local VM");
+    if (!computerMcpFor(instance, preparedSelection.model) || instance.driverKind === "boxAgent") {
+      throw new Error(instance.driverKind === "openai-compat" && !catalogModelAcceptsImages(instance.models, preparedSelection.model)
+        ? "this model is not marked as accepting images — turn on image support for it in Settings → Engines"
+        : "this model engine cannot use the Local VM");
     }
     // A distinct identity fences cleanup even in shared mode on the same room thread.
     const target = { ...localVmTargetForBot(readyBot.id) };
@@ -18579,7 +18591,7 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
         return json(res, 415, { error: "content-type must be application/json" });
       }
       const parsed = instanceSettingsSchema.safeParse(await readBody(req, 16384));
-      if (!parsed.success) return json(res, 400, { error: "Supply a valid CLI path, account name, configuration directory or boolean tools setting." });
+      if (!parsed.success) return json(res, 400, { error: "Supply a valid CLI path, account name, configuration directory, tools setting, or image-support setting." });
       const body = parsed.data;
       const instanceId = instancePatch[1];
       if (providerConfigBusy) return json(res, 409, { error: "provider settings are already being updated" });
@@ -18601,6 +18613,16 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
             return json(res, 400, { error: "The tools setting is available for OpenAI-compatible, Grok API and MiniMax API instances only." });
           }
           entry.config = { ...entry.config as Record<string, unknown>, tools: body.tools };
+        }
+        if (body.modelImages !== undefined) {
+          if (entry.driver !== "openai-compat") {
+            return json(res, 400, { error: "Image support can be set on custom OpenAI-compatible engines only." });
+          }
+          try {
+            entry.config = mergeImageModels({ ...(entry.config as Record<string, unknown> ?? {}) }, body.modelImages);
+          } catch (error) {
+            return json(res, 400, { error: error instanceof Error ? error.message : "Invalid image support setting." });
+          }
         }
         if (body.displayName !== undefined) entry.displayName = body.displayName;
         if (body.configDir !== undefined) {
